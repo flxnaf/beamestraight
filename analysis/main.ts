@@ -738,6 +738,15 @@ async function startCamera(): Promise<boolean> {
 
     cameraStatus.textContent = t('cameraActive');
     cameraStatus.style.color = '#00ce7c';
+    
+    // Update status dot color to green
+    const statusBadge = document.getElementById('cameraStatusBadge');
+    const statusDot = statusBadge?.querySelector('.status-dot') as HTMLElement;
+    if (statusDot) {
+      statusDot.style.background = '#00ce7c';
+      statusDot.style.boxShadow = '0 0 10px #00ce7c';
+    }
+    
     captureBtn.disabled = true; // Initially disabled until mouth is open
     
     // Set initial alignment status color
@@ -747,17 +756,26 @@ async function startCamera(): Promise<boolean> {
     // Set cookie to remember camera permission was granted
     setCookie('beame_camera_allowed', 'true', 365);
     
+    console.log('✅ [DEBUG] Camera started successfully - status should be GREEN');
+    
     return true;
   } catch (error) {
-    console.error('Error starting camera:', error);
+    console.error('❌ [DEBUG] Camera error:', error);
     cameraStatus.textContent = t('cameraDenied');
     cameraStatus.style.color = '#ef4444';
     
-    // Don't show alert on first auto-attempt
-    const hasPrompted = getCookie('beame_camera_prompted');
-    if (hasPrompted) {
-      alert(currentLanguage === 'en' ? 'Failed to access camera. Please ensure camera permissions are granted.' : '無法訪問攝像頭。請確保已授予攝像頭權限。');
+    // Update status dot color to red
+    const statusBadge = document.getElementById('cameraStatusBadge');
+    const statusDot = statusBadge?.querySelector('.status-dot') as HTMLElement;
+    if (statusDot) {
+      statusDot.style.background = '#ef4444';
+      statusDot.style.boxShadow = '0 0 10px #ef4444';
     }
+    
+    // Show user-friendly error message
+    alert(currentLanguage === 'en' 
+      ? 'Failed to access camera. Please ensure camera permissions are granted in your browser settings.' 
+      : '無法訪問攝像頭。請確保已在瀏覽器設置中授予攝像頭權限。');
     
     return false;
   }
@@ -1972,10 +1990,35 @@ async function initializeApp() {
     // For this implementation, we'll start fresh each time
   }
 
-  // Auto-start camera on page load
-  console.log('📹 [DEBUG] Attempting to start camera automatically...');
-  setCookie('beame_camera_prompted', 'true', 365);
-  await startCamera();
+  // Don't auto-start camera - wait for user interaction
+  // This fixes mobile/Vercel issues where auto-start causes permission conflicts
+  console.log('📹 [DEBUG] Camera ready to start on user interaction');
+  
+  // Add click listener to start camera on first user interaction with video area
+  const videoContainer = document.querySelector('.video-container');
+  if (videoContainer && !camera) {
+    videoContainer.addEventListener('click', async () => {
+      if (!camera) {
+        console.log('📹 [DEBUG] User clicked video area, starting camera...');
+        const started = await startCamera();
+        if (started) {
+          setCookie('beame_camera_prompted', 'true', 365);
+        }
+      }
+    }, { once: true }); // Only trigger once
+    
+    // Show a visual hint that camera needs to be started
+    cameraStatus.textContent = currentLanguage === 'en' ? 'Tap to start camera' : '點擊啟動攝像頭';
+    cameraStatus.style.color = '#f08c00'; // Orange
+    
+    // Update status dot color to orange (waiting)
+    const statusBadge = document.getElementById('cameraStatusBadge');
+    const statusDot = statusBadge?.querySelector('.status-dot') as HTMLElement;
+    if (statusDot) {
+      statusDot.style.background = '#f08c00';
+      statusDot.style.boxShadow = '0 0 10px #f08c00';
+    }
+  }
   
   // Log available elements
   console.log('🔍 [DEBUG] Checking DOM elements...');
