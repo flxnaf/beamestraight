@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beame AI Analysis - Transform Your Smile</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body class="app-body">
+    <!-- Navigation Bar (Consistent with Landing Page) -->
+    <nav class="fixed-top">
+        <div class="navbar-container">
+            <div class="logo-container">
+                <a href="../landing/index.html" class="logo">be@me</a>
+            </div>
+            <div class="nav-right">
+                <div class="language-switcher">
+                    <button class="lang-btn" data-lang="zh" id="lang-zh">中文</button>
+                    <button class="lang-btn" data-lang="en" id="lang-en">EN</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="app-container">
+        <header class="app-header">
+            <h1 data-en="AI Smile Analysis" data-zh="AI 笑容分析">AI Smile Analysis</h1>
+            <p class="subtitle" data-en="Let our AI guide your transformation" data-zh="讓我們的 AI 引導您的轉變">Let our AI guide your transformation</p>
+        </header>
+
+        <main class="app-main">
+            <!-- Camera / Scanning Section -->
+            <div class="scanning-section" id="webcamSection">
+                <div class="camera-card">
+                    <div class="video-container">
+                        <video id="webcam" autoplay playsinline></video>
+                        <canvas id="output" class="output-canvas"></canvas>
+                        
+                        <!-- Intelligent HUD Overlay -->
+                        <div class="camera-hud">
+                            <div class="hud-top">
+                                <div class="status-badge" id="cameraStatusBadge">
+                                    <span class="status-dot"></span>
+                                    <span id="cameraStatus" data-en="Initializing..." data-zh="正在啟動...">Initializing...</span>
+                                </div>
+                            </div>
+                            <div class="hud-center">
+                            </div>
+                            <div class="hud-bottom">
+                                <!-- Removed mouth-instruction from here to avoid blocking camera view -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="camera-controls">
+                        <button id="captureBtn" class="btn-capture" disabled>
+                            <div class="btn-capture-inner"></div>
+                        </button>
+                        <span class="btn-label" data-en="Capture" data-zh="拍攝">Capture</span>
+                    </div>
+                </div>
+
+                <!-- Live Status Panel -->
+                <div class="app-status-panel" id="statusPanel">
+                    <div class="status-pill">
+                        <span class="label" data-en="FACE DETECTION" data-zh="面部檢測">FACE DETECTION</span>
+                        <span class="value" id="faceStatus" data-en="Waiting..." data-zh="等待中...">Waiting...</span>
+                    </div>
+                    <div class="status-pill">
+                        <span class="label" data-en="ALIGNMENT" data-zh="排列分析">ALIGNMENT</span>
+                        <span class="value" id="analysisStatus" data-en="Ready" data-zh="就緒">Ready</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <!-- Result Navigation -->
+                <div class="results-header">
+                    <div class="result-steps">
+                        <div class="res-step active" id="step1">
+                            <span class="num">1</span>
+                            <span class="txt" data-en="AI Generation" data-zh="AI 生成">AI Generation</span>
+                        </div>
+                        <div class="res-step-line"></div>
+                        <div class="res-step" id="step2">
+                            <span class="num">2</span>
+                            <span class="txt" data-en="Detailed Report" data-zh="詳細報告">Detailed Report</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Navigation -->
+                <div class="app-tabs">
+                    <button class="tab-item active" data-tab="preview" onclick="switchTab('preview')">
+                        <span class="icon">📸</span>
+                        <span class="label" data-en="AI Preview" data-zh="AI 預覽">AI Preview</span>
+                    </button>
+                    <button class="tab-item disabled" data-tab="plan" onclick="switchTab('plan')" id="planTabBtn" disabled>
+                        <span class="icon">📋</span>
+                        <span class="label" data-en="Treatment" data-zh="治療方案">Treatment</span>
+                    </button>
+                    <button class="tab-item disabled" data-tab="3d" onclick="switchTab('3d')" id="3dTabBtn" disabled>
+                        <span class="icon">🦷</span>
+                        <span class="label" data-en="3D View" data-zh="3D 視圖">3D View</span>
+                    </button>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="app-tab-content">
+                    <!-- Tab 1: AI Preview -->
+                    <div class="tab-pane active" id="tab-preview">
+                        <div class="preview-comparison">
+                            <div class="comparison-grid">
+                                <div class="img-box">
+                                    <span class="tag" data-en="Original" data-zh="原始照片">Original</span>
+                                    <div class="img-wrap">
+                                        <img id="originalImage" alt="Original">
+                                    </div>
+                                </div>
+                                <div class="comparison-arrow">→</div>
+                                <div class="img-box result">
+                                    <span class="tag primary" data-en="AI Result" data-zh="AI 效果">AI Result</span>
+                                    <div class="img-wrap">
+                                        <div class="processing-loader" id="processingIndicator">
+                                            <div class="scanner-line"></div>
+                                            <p id="analysisStep">Analyzing...</p>
+                                        </div>
+                                        <img id="straightenedImage" alt="Result" style="display: none;">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ai-notice">
+                                <span class="icon">💡</span>
+                                <p data-en="This is an AI-generated simulation. Results may vary after clinical review." 
+                                   data-zh="這是 AI 生成的模擬效果。實際結果可能在臨床審核後有所不同。">
+                                   This is an AI-generated simulation. Results may vary after clinical review.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="actions-row">
+                            <button id="downloadBtn" class="btn-app btn-outline" style="display: none;">
+                                <span data-en="💾 Save Photo" data-zh="💾 保存照片">💾 Save Photo</span>
+                            </button>
+                            <button id="retryBtn" class="btn-app btn-primary">
+                                <span data-en="📸 New Scan" data-zh="📸 重新掃描">📸 New Scan</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Treatment Plan -->
+                    <div class="tab-pane" id="tab-plan">
+                        <div class="plan-report">
+                            <div class="eligibility-banner" id="eligibilityCard">
+                                <div class="badge" id="eligibilityBadge">
+                                    <span id="eligibilityStatus">...</span>
+                                </div>
+                                <p id="eligibilityMessage"></p>
+                            </div>
+
+                            <div class="metrics-grid" id="treatmentDetails" style="display: none;">
+                                <div class="metric-card">
+                                    <div class="icon">📅</div>
+                                    <div class="data">
+                                        <label data-en="Duration" data-zh="療程週期">Duration</label>
+                                        <span id="treatmentLength">-</span>
+                                    </div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="icon">📊</div>
+                                    <div class="data">
+                                        <label data-en="Aligners" data-zh="牙套數量">Aligners</label>
+                                        <span id="stageCount">-</span>
+                                    </div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="icon">⏰</div>
+                                    <div class="data">
+                                        <label data-en="Wear Type" data-zh="佩戴方式">Wear Type</label>
+                                        <span id="wearType">-</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="details-section">
+                                <h4 data-en="Recommended Corrections" data-zh="建議修正項目">Recommended Corrections</h4>
+                                <div class="tags-cloud" id="correctionsList"></div>
+                            </div>
+
+                            <div class="details-section">
+                                <h4 data-en="Clinical Assessment" data-zh="臨床評估建議">Clinical Assessment</h4>
+                                <ul class="check-list" id="treatmentReasons"></ul>
+                            </div>
+
+                            <div class="rejection-box" id="rejectionCard" style="display: none;">
+                                <h3 data-en="Complex Case Detected" data-zh="檢測到複雜個案">Complex Case Detected</h3>
+                                <p data-en="Our AI suggests your case might need professional orthodontic review for traditional methods."
+                                   data-zh="我們的 AI 建議您的個案可能需要專業牙科醫生進行傳統矯正規核。"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: 3D View -->
+                    <div class="tab-pane" id="tab-3d">
+                        <div class="viewer-card">
+                            <div class="viewer-container">
+                                <div id="dentalVisualization" class="three-canvas-host">
+                                    <div class="viewer-placeholder">
+                                        <div class="spinner"></div>
+                                        <p data-en="Initializing 3D Model..." data-zh="正在啟動 3D 模型...">Initializing 3D Model...</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="viewer-ui">
+                                    <div class="view-angles">
+                                        <button class="angle-btn active" data-view="front" data-en="Front" data-zh="正面">Front</button>
+                                        <button class="angle-btn" data-view="top" data-en="Top" data-zh="頂面">Top</button>
+                                        <button class="angle-btn" data-view="left" data-en="Left" data-zh="左側">Left</button>
+                                        <button class="angle-btn" data-view="right" data-en="Right" data-zh="右側">Right</button>
+                                    </div>
+
+                                    <div class="view-toggles">
+                                        <button id="animateBtn" class="btn-action">
+                                            <span class="icon">▶</span>
+                                            <span data-en="Show Result" data-zh="查看效果">Show Result</span>
+                                        </button>
+                                        <button id="resetViewBtn" class="btn-action outline">
+                                            <span data-en="Show Current" data-zh="查看現狀">Show Current</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="viewer-disclaimer" data-en="Landmark-based 3D simulation" data-zh="基於面部特徵點的 3D 模擬">Landmark-based 3D simulation</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <p>&copy; 2026 Beame AI - <span data-en="Transforming Smiles" data-zh="改變笑容">Transforming Smiles</span></p>
+        </footer>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+    <script>
+        // Language switching script inside app.html for fast responsive UI
+        const switchAppLanguage = (lang) => {
+            document.documentElement.lang = lang;
+            localStorage.setItem('beame-language', lang);
+            
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+
+            document.querySelectorAll('[data-en]').forEach(el => {
+                el.textContent = el.getAttribute('data-' + lang);
+            });
+
+            // Dispatch event for main.ts to pick up
+            window.dispatchEvent(new CustomEvent('languageChanged', { detail: lang }));
+        };
+
+        document.getElementById('lang-en').onclick = () => switchAppLanguage('en');
+        document.getElementById('lang-zh').onclick = () => switchAppLanguage('zh');
+
+        // Init language
+        const savedLang = localStorage.getItem('beame-language') || 'en';
+        switchAppLanguage(savedLang);
+
+        // Tab functionality
+        function switchTab(tabName) {
+            const selectedBtn = document.querySelector('.tab-item[data-tab="' + tabName + '"]');
+            if (selectedBtn && selectedBtn.classList.contains('disabled')) return;
+            
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
+            
+            const pane = document.getElementById('tab-' + tabName);
+            if (pane) pane.classList.add('active');
+            if (selectedBtn) selectedBtn.classList.add('active');
+            
+            if (tabName === '3d' && window.initialize3DVisualization) {
+                setTimeout(() => window.initialize3DVisualization(), 100);
+            }
+        }
+    </script>
+</body>
+</html>

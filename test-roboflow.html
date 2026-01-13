@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Roboflow API</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #10b981;
+            margin-bottom: 10px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        button {
+            background: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #059669;
+        }
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+        .info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 2px solid #3b82f6;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-top: 15px;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦷 Test Roboflow API</h1>
+        <p>Test if your Roboflow API key and model ID are working</p>
+
+        <div class="info">
+💡 <strong>How to get these:</strong><br>
+1. API Key: https://roboflow.com/ → Settings → API Keys<br>
+2. Model ID: https://universe.roboflow.com/ → Pick a public model → Copy ID<br>
+   Format: workspace/project/version (e.g., "microsoft-coco/3")
+        </div>
+
+        <label>Roboflow API Key:</label>
+        <input type="text" id="apiKey" placeholder="e.g., aBcDeFgHiJkLmNoPqRsTuVwXyZ123456">
+
+        <label>Model ID:</label>
+        <input type="text" id="modelId" placeholder="e.g., microsoft-coco/3" value="microsoft-coco/3">
+
+        <button onclick="testAPI()" id="testBtn">🚀 Test API</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const modelId = document.getElementById('modelId').value.trim();
+            const resultDiv = document.getElementById('result');
+            const testBtn = document.getElementById('testBtn');
+
+            if (!apiKey) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Please enter your Roboflow API key';
+                return;
+            }
+
+            if (!modelId) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Please enter a model ID';
+                return;
+            }
+
+            testBtn.disabled = true;
+            resultDiv.className = 'result info';
+            resultDiv.textContent = '⏳ Testing API connection...';
+
+            try {
+                // Create a simple test image (1x1 pixel white image)
+                const testImage = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+
+                const url = `https://detect.roboflow.com/${modelId}?api_key=${apiKey}&confidence=40&overlap=30`;
+                
+                console.log('Testing URL:', url.replace(apiKey, 'API_KEY_HIDDEN'));
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: testImage
+                });
+
+                const responseText = await response.text();
+                let result;
+                
+                try {
+                    result = JSON.parse(responseText);
+                } catch (e) {
+                    result = { raw: responseText };
+                }
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = 
+                        `✅ SUCCESS! Your API key and model are working!\n\n` +
+                        `Status: ${response.status} ${response.statusText}\n` +
+                        `Model: ${modelId}\n` +
+                        `Response:\n${JSON.stringify(result, null, 2)}\n\n` +
+                        `🎉 You can now use this in your .env file:\n` +
+                        `VITE_ROBOFLOW_API_KEY=${apiKey}\n` +
+                        `VITE_ROBOFLOW_MODEL_ID=${modelId}`;
+                } else {
+                    let errorMsg = `❌ API Error: ${response.status} ${response.statusText}\n\n`;
+
+                    if (response.status === 403) {
+                        errorMsg += `Possible causes:\n`;
+                        errorMsg += `1. Invalid API key\n`;
+                        errorMsg += `2. Model "${modelId}" is private or doesn't exist\n`;
+                        errorMsg += `3. Wrong model ID format\n\n`;
+                        errorMsg += `💡 Try:\n`;
+                        errorMsg += `- Check your API key from Roboflow settings\n`;
+                        errorMsg += `- Use a PUBLIC model from universe.roboflow.com\n`;
+                        errorMsg += `- Try "microsoft-coco/3" as a test\n`;
+                    } else if (response.status === 401) {
+                        errorMsg += `Your API key is invalid.\n`;
+                        errorMsg += `Get it from: https://roboflow.com/ → Settings → API Keys\n`;
+                    } else if (response.status === 429) {
+                        errorMsg += `Rate limit exceeded. Wait a moment and try again.\n`;
+                    }
+
+                    errorMsg += `\nResponse:\n${responseText}`;
+                    
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = errorMsg;
+                }
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 
+                    `❌ Network Error:\n\n` +
+                    `${error.message}\n\n` +
+                    `Check:\n` +
+                    `- Internet connection\n` +
+                    `- Firewall/CORS settings\n` +
+                    `- API key format`;
+            } finally {
+                testBtn.disabled = false;
+            }
+        }
+
+        // Allow Enter key to test
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                testAPI();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>be@me | AI Teeth Straightener</title>
+    <link rel="stylesheet" href="./style-en.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="fixed-top">
+        <div class="navbar-container">
+            <div class="logo-container">
+                <a href="#" class="logo">be@me</a>
+            </div>
+            <div class="nav-right">
+                <div class="language-switcher">
+                    <button class="lang-btn" onclick="switchLanguage('zh')">中文</button>
+                    <button class="lang-btn active" onclick="switchLanguage('en')">EN</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Hero Banner -->
+        <div class="top">
+            <div class="computer">
+                <div class="pc-view">
+                    <img class="computer_img_top" src="./English Beame banner.png" alt="Beame">
+                </div>
+                <div class="mobile-view">
+                    <img class="move_img" src="./English Beame banner.png" alt="Beame">
+                </div>
+                
+                <div class="computer_div">
+                    <button onclick="startAnalysis()" class="deta_button_3">Start AI Analysis Now</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-xl">
+            <h2 class="service3_h2">Choose Your Smile Journey</h2>
+
+            <div class="advisory">
+                <!-- Card 1 -->
+                <div class="box" onclick="bookConsultation()">
+                    <div class="box-image" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/mybeameNewHK-70.png')"></div>
+                    <div class="box-content">
+                        <h2>In-Store Consultation</h2>
+                        <h4>Face-to-Face Support</h4>
+                        <p>Book a 3D scan and meet our dental experts for a personalized treatment plan.</p>
+                        <button class="box_btn">Book Now</button>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="box" onclick="startAnalysis()">
+                    <div class="box-image" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/mybeameNewHK-69.png')"></div>
+                    <div class="box-content">
+                        <h2>AI Instant Evaluation</h2>
+                        <h4>Ready in 5 Minutes</h4>
+                        <p>Start from home. Our AI analyzes your smile and shows your future transformation.</p>
+                        <button class="box_btn">Start Now</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works Section (From aligner.vue) -->
+        <div class="container-xl how-it-works">
+            <h2 class="process_h2">The Transformation Journey</h2>
+            <h3 class="process_h3_2">5 Steps to Your New Smile</h3>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_14.png" alt="Step 1">
+                    <h3>1. Online Booking</h3>
+                    <p>Book your consultation via web or WhatsApp customer service.</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_10.png" alt="Step 2">
+                    <h3>2. Visit Clinic</h3>
+                    <p>Meet our smile consultants for expert advice and detailed pricing.</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_11.png" alt="Step 3">
+                    <h3>3. 3D Scanning</h3>
+                    <p>Professional dentists will perform a detailed scan of your teeth.</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_12.png" alt="Step 4">
+                    <h3>4. Plan Design</h3>
+                    <p>Design your custom treatment plan and start the production.</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_13.png" alt="Step 5">
+                    <h3>5. Collect Braces</h3>
+                    <p>Collect your first set of invisible aligners at the chosen store.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Beame Section (From aligner.vue) -->
+        <div class="container-xl layout">
+            <h2 class="process_h2">
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
+                Why Choose be@me
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
+            </h2>
+            <h3 class="process_h3_2">Providing professional, transparent, and cost-effective treatment</h3>
+            
+            <div class="knowledge row">
+                <div class="BraceTeeth" style="background-image: linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.8)), url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_21.png')">
+                    <h2 class="BraceTeeth_h2">Professional Support</h2>
+                    <ul class="why-list">
+                        <li><strong>Exclusive $0 Check Fee:</strong> Free in-store consultation when you book online.</li>
+                        <li><strong>Flexible Follow-ups:</strong> Choose follow-up frequency based on your needs.</li>
+                        <li><strong>Expert Medical Team:</strong> Guided by experienced orthodontists for the best results.</li>
+                    </ul>
+                    <button class="BraceTeeth_button" onclick="startAnalysis()">Start AI Analysis Now</button>
+                </div>
+                <div class="BraceTeeth_2" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_9.png')">
+                    <h2 class="BraceTeeth_h2_2">More Than Just Braces</h2>
+                    <p class="BraceTeeth_p_2">
+                        We care about your long-term dental health. Through the Beame Academy, access professional tips written by experts.
+                        Our flagship clinics provide city-wide support to make beauty simple.
+                    </p>
+                    <button class="BraceTeeth_button" onclick="window.open('https://smile.mybeame.com/')">Visit Academy</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="Bottom_Kindly container-xl">
+            <p>1. AI analysis is for reference only. Results may vary by individual.</p>
+            <p>2. All photos are processed locally to ensure your privacy.</p>
+            <p>3. We recommend booking a professional consultation after your AI scan.</p>
+        </div>
+
+        <div class="Bottom">
+            <p>&copy; 2026 be@me - Transform Your Smile</p>
+        </div>
+    </div>
+
+    <script>
+        // Set language on load
+        localStorage.setItem('beame-language', 'en');
+
+        function switchLanguage(lang) {
+            localStorage.setItem('beame-language', lang);
+            if (lang === 'en') {
+                window.location.href = 'index-en.html';
+            } else {
+                window.location.href = 'index.html';
+            }
+        }
+
+        function startAnalysis() { window.location.href = '../analysis/index.html'; }
+        function bookConsultation() { alert('Booking coming soon! Try our AI Analysis first.'); }
+    </script>
+</body>
+</html>

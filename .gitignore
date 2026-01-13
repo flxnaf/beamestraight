@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+.env.local
+.DS_Store
+
+# Training artifacts (too large for GitHub)
+runs/
+teeth-2/
+train_teeth_model.py
+*.pt
+
+# Keep the final ONNX model for deployment
+# public/models/*.onnx is NOT ignored (we need it!)
+

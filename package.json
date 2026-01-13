@@ -1,0 +1,24 @@
+{
+  "name": "beame-teeth-straightener",
+  "version": "1.0.0",
+  "description": "AI-powered teeth straightening app with facial analysis",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@mediapipe/camera_utils": "^0.3.1632432234",
+    "@mediapipe/face_mesh": "^0.4.1633559619",
+    "@types/three": "^0.182.0",
+    "onnxruntime-web": "^1.23.2",
+    "roboflow": "^0.2.0",
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11"
+  }
+}

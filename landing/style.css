@@ -1,0 +1,453 @@
+/* Custom Fonts */
+@font-face {
+  font-family: "Comfortaa-Regular";
+  src: url("./Font/Comfortaa font/static/Comfortaa-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Omnium-ExtraBold";
+  src: url("./Font/OMNIUM-EXTRABOLD.OTF") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+}
+
+:root {
+  --beame-green: #00ce7c;
+  --beame-green-hover: #00e467;
+  --beame-purple: #667eea;
+  --beame-purple-dark: #764ba2;
+  --bg-light: #f8f9fa;
+  --surface: #ffffff;
+  --text-main: #333333;
+  --text-muted: #666666;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 40px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Comfortaa-Regular", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  color: var(--text-main);
+  background-color: var(--bg-light);
+  overflow-x: hidden;
+}
+
+.container-xl {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Navigation Bar */
+.fixed-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  background: white;
+  box-shadow: var(--shadow-sm);
+  border-bottom: 2px solid var(--beame-green);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+}
+
+.navbar-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--beame-green);
+  text-decoration: none;
+}
+
+.language-switcher {
+  display: flex;
+  gap: 5px;
+  background: #f0f0f0;
+  padding: 4px;
+  border-radius: 50px;
+}
+
+.lang-btn {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.lang-btn.active {
+  background: white;
+  color: var(--beame-green);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Hero Section */
+.top {
+  margin-top: 70px;
+}
+
+.pc-view {
+  display: block;
+}
+
+.mobile-view {
+  display: none;
+}
+
+@media (max-width: 850px) {
+  .pc-view {
+    display: none;
+  }
+  .mobile-view {
+    display: block;
+  }
+}
+
+.computer {
+  position: relative;
+  background: white;
+}
+
+.computer_img_top {
+  width: 100%;
+  display: block;
+}
+
+.move_img {
+  width: 100%;
+  display: block;
+}
+
+.computer_div, .computer_div_2 {
+  position: absolute;
+  top: 75%;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 10;
+}
+
+.deta_button_3 {
+  background: var(--beame-green);
+  color: white;
+  padding: 16px 48px;
+  border-radius: 50px;
+  font-size: 20px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+  font-family: inherit;
+}
+
+.deta_button_3:hover {
+  background: linear-gradient(135deg, var(--beame-green-hover), var(--beame-green));
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 206, 124, 0.3);
+}
+
+/* Service Header */
+.service3_h2 {
+  text-align: center;
+  margin: 80px 0 40px;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* Advisory Cards */
+.advisory {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30px;
+  margin-bottom: 80px;
+}
+
+.box {
+  background: white;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  border-top: 4px solid var(--beame-green);
+  transition: all 0.4s ease;
+  cursor: pointer;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.box:hover {
+  transform: translateY(-10px);
+  box-shadow: var(--shadow-lg);
+}
+
+.box-image {
+  width: 100%;
+  height: 250px;
+  background-size: cover;
+  background-position: center;
+}
+
+.box-content {
+  padding: 30px;
+  text-align: center;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.box-content h2 {
+  font-size: 24px;
+  margin-bottom: 15px;
+  color: var(--text-main);
+}
+
+.box-content h4 {
+  font-size: 16px;
+  color: var(--beame-green);
+  margin-bottom: 15px;
+  font-weight: 700;
+}
+
+.box-content p {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-bottom: 25px;
+}
+
+.box_btn {
+  background: var(--beame-green);
+  color: white;
+  padding: 12px 32px;
+  border-radius: 50px;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  align-self: center;
+}
+
+/* How It Works Section */
+.how-it-works {
+  padding: 80px 0;
+  text-align: center;
+}
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 20px;
+  margin-top: 40px;
+}
+
+.step-card {
+  background: white;
+  padding: 24px 15px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.step-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+}
+
+.step-card img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 15px;
+}
+
+.step-card h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: var(--beame-green);
+}
+
+.step-card p {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Knowledge Section */
+.layout {
+  padding: 80px 0;
+  background: white;
+  border-radius: var(--radius-xl);
+  margin-bottom: 80px;
+}
+
+.process_h2 {
+  font-size: 32px;
+  text-align: center;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.star { width: 32px; }
+
+.process_h3_2 {
+  font-size: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: 60px;
+}
+
+.knowledge.row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30px;
+}
+
+.BraceTeeth, .BraceTeeth_2 {
+  background: var(--bg-light);
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-size: cover;
+  background-position: center;
+  min-height: 350px;
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.BraceTeeth:hover, .BraceTeeth_2:hover {
+  border-color: var(--beame-green);
+  box-shadow: 0 10px 25px rgba(0, 206, 124, 0.1);
+}
+
+.BraceTeeth_h2, .BraceTeeth_h2_2 {
+  font-size: 28px;
+  margin-bottom: 15px;
+}
+
+.BraceTeeth_p, .BraceTeeth_p_2 {
+  font-size: 16px;
+  margin-bottom: 25px;
+  color: var(--text-muted);
+}
+
+/* Specific styling for the darker background card */
+.BraceTeeth_2 .BraceTeeth_h2_2 {
+  color: white;
+}
+
+.BraceTeeth_2 .BraceTeeth_p_2 {
+  color: white;
+}
+
+.why-list {
+  list-style: none;
+  text-align: left;
+  margin-bottom: 25px;
+}
+
+.why-list li {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  padding-left: 20px;
+  position: relative;
+}
+
+.why-list li::before {
+  content: '✓';
+  color: var(--beame-green);
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+}
+
+.why-list li strong {
+  color: var(--text-main);
+}
+
+.BraceTeeth_button {
+  background: var(--beame-green);
+  color: white;
+  padding: 12px 32px;
+  border-radius: 50px;
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+/* Footer & Bottom */
+.Bottom_Kindly {
+  padding: 60px 0;
+  border-top: 1px solid #eee;
+}
+
+.Bottom_Kindly p {
+  font-size: 13px;
+  color: var(--text-light);
+  margin-bottom: 10px;
+}
+
+.Bottom {
+  background: #1a1a1a;
+  padding: 40px 0;
+  color: white;
+  text-align: center;
+  border-top: 3px solid var(--beame-green);
+}
+
+/* Mobile Responsive */
+@media (max-width: 850px) {
+  .advisory, .knowledge.row {
+    grid-template-columns: 1fr;
+  }
+  
+  .service3_h2 { font-size: 28px; }
+  
+  .steps-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .deta_button_3 {
+    font-size: 16px;
+    padding: 12px 32px;
+  }
+}

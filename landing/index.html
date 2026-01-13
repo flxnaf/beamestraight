@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>be@me | AI 透明牙箍</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="fixed-top">
+        <div class="navbar-container">
+            <div class="logo-container">
+                <a href="#" class="logo">be@me</a>
+            </div>
+            <div class="nav-right">
+                <div class="language-switcher">
+                    <button class="lang-btn active" onclick="switchLanguage('zh')">中文</button>
+                    <button class="lang-btn" onclick="switchLanguage('en')">EN</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Hero Banner -->
+        <div class="top">
+            <div class="computer">
+                <div class="pc-view">
+                    <img class="computer_img_top" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner-newyear.png" alt="Beame">
+                </div>
+                <div class="mobile-view">
+                    <img class="move_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner-newyear2.png" alt="Beame">
+                </div>
+                
+                <div class="computer_div">
+                    <button onclick="startAnalysis()" class="deta_button_3">立即開始 AI 分析</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-xl">
+            <h2 class="service3_h2">選擇您的笑容旅程</h2>
+
+            <div class="advisory">
+                <!-- Card 1 -->
+                <div class="box" onclick="bookConsultation()">
+                    <div class="box-image" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/mybeameNewHK-70.png')"></div>
+                    <div class="box-content">
+                        <h2>預約門市諮詢</h2>
+                        <h4>面對面解答疑問</h4>
+                        <p>預約 3D 掃描及牙醫諮詢，由專業團隊為您量身定制方案。</p>
+                        <button class="box_btn">立即預約</button>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="box" onclick="startAnalysis()">
+                    <div class="box-image" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/mybeameNewHK-69.png')"></div>
+                    <div class="box-content">
+                        <h2>AI 即時評估</h2>
+                        <h4>5 分鐘極速完成</h4>
+                        <p>安在家中即可開始，透過 AI 技術即時預覽您的笑容轉變。</p>
+                        <button class="box_btn">立即開始</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works Section (From aligner.vue) -->
+        <div class="container-xl how-it-works">
+            <h2 class="process_h2">開始透明牙箍全過程</h2>
+            <h3 class="process_h3_2">5 步取得首個透明牙箍</h3>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_14.png" alt="Step 1">
+                    <h3>1. 網上預約</h3>
+                    <p>網上或 WhatsApp 客服預約門市諮詢</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_10.png" alt="Step 2">
+                    <h3>2. 到達門市</h3>
+                    <p>微笑顧問專人解答疑問及報價</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_11.png" alt="Step 3">
+                    <h3>3. 3D 掃描</h3>
+                    <p>由牙醫直接確認牙齒狀況</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_12.png" alt="Step 4">
+                    <h3>4. 確認方案</h3>
+                    <p>牙醫設計方案，等待牙箍製作</p>
+                </div>
+                <div class="step-card">
+                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_13.png" alt="Step 5">
+                    <h3>5. 領取牙箍</h3>
+                    <p>到預約門市領取首個透明牙箍</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Beame Section (From aligner.vue) -->
+        <div class="container-xl layout">
+            <h2 class="process_h2">
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
+                為什麼選擇 be@me
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
+            </h2>
+            <h3 class="process_h3_2">提供更專業、更透明、更具性價比的箍牙方案</h3>
+            
+            <div class="knowledge row">
+                <div class="BraceTeeth" style="background-image: linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.8)), url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_21.png')">
+                    <h2 class="BraceTeeth_h2">全方位專業支援</h2>
+                    <ul class="why-list">
+                        <li><strong>獨家 $0 檢查費：</strong>線上預約即享門市免費諮詢。</li>
+                        <li><strong>彈性覆診方案：</strong>依牙齒狀況自行決定覆診次數，降低支出。</li>
+                        <li><strong>專業醫療團隊：</strong>由經驗豐富的牙醫全程跟進，確保效果。</li>
+                    </ul>
+                    <button class="BraceTeeth_button" onclick="startAnalysis()">立即開始 AI 評估</button>
+                </div>
+                <div class="BraceTeeth_2" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_9.png')">
+                    <h2 class="BraceTeeth_h2_2">不只是箍牙</h2>
+                    <p class="BraceTeeth_p_2">
+                        我們關心你的牙齒健康。透過 Beame 牙齒學堂，你可以獲得專業的護齒知識。
+                        同時，我們的旗艦門診提供全港多點支援，結合 AI 數據，讓美變得簡單。
+                    </p>
+                    <button class="BraceTeeth_button" onclick="window.open('https://smile.mybeame.com/')">瀏覽牙齒學堂</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="Bottom_Kindly container-xl">
+            <p>1. AI 分析僅供參考，實際效果可能因個人狀況而異。</p>
+            <p>2. 所有照片在本地處理，確保您的私隱安全。</p>
+            <p>3. 建議在使用 AI 分析後，預約專業評估。</p>
+        </div>
+
+        <div class="Bottom">
+            <p>&copy; 2026 be@me - 改變你的笑容</p>
+        </div>
+    </div>
+
+    <script>
+        // Set language on load
+        localStorage.setItem('beame-language', 'zh');
+        
+        function switchLanguage(lang) {
+            localStorage.setItem('beame-language', lang);
+            if (lang === 'en') {
+                window.location.href = 'index-en.html';
+            } else {
+                window.location.href = 'index.html';
+            }
+        }
+
+        function startAnalysis() { window.location.href = '../analysis/index.html'; }
+        function bookConsultation() { alert('諮詢預約即將推出！請先嘗試我們的 AI 分析。'); }
+    </script>
+</body>
+</html>
