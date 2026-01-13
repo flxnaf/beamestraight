@@ -17,16 +17,16 @@ import { enableDiagnostics } from './utils/diagnostics';
 import type { ScanSession, DentalAnalysis, TreatmentPlan } from './types/dental';
 import { loadONNXModel, detectTeethONNX, isONNXReady } from './services/onnxInference';
 
-// ⚙️ CONFIGURATION: Set to true to save API credits during development
-const USE_FALLBACK_MODE = false; // Set to false to enable real AI generation
+// CONFIGURATION: Set to true to save API credits during development
+const USE_FALLBACK_MODE = true; // Set to false to enable real AI generation
 
 // Initialize Gemini AI (unused in fallback mode)
 const _genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
 
-// 🦷 LOCAL TOOTH DETECTION (ONNX - Runs in browser!)
+// LOCAL TOOTH DETECTION (ONNX - Runs in browser!)
 const ONNX_MODEL_PATH = import.meta.env.VITE_ONNX_MODEL_PATH || '/models/teeth-detection.onnx';
-const ENABLE_TOOTH_DETECTION = false; // 🚫 DISABLED: Model too buggy and causes lag
-const SHOW_TOOTH_OVERLAY = false; // 🚫 DISABLED: Hide overlay (only relevant if detection is enabled)
+const ENABLE_TOOTH_DETECTION = false; // DISABLED: Model too buggy and causes lag
+const SHOW_TOOTH_OVERLAY = false; // DISABLED: Hide overlay (only relevant if detection is enabled)
 
 // Roboflow API (fallback only - slower)
 const ROBOFLOW_API_KEY = import.meta.env.VITE_ROBOFLOW_API_KEY || '';
@@ -39,44 +39,44 @@ let currentLanguage = localStorage.getItem('beame-language') || 'en';
 const translations: Record<string, Record<string, string>> = {
   en: {
     cameraStarting: 'Starting...',
-    cameraActive: 'Active ✓',
+    cameraActive: 'Active',
     cameraDenied: 'Access Denied',
-    faceDetected: 'Face Detected ✓',
+    faceDetected: 'Face Detected',
     noFace: 'No Face Detected',
-    mouthOpenTitle: 'VALID ✓',
+    mouthOpenTitle: 'VALID',
     mouthOpenText: 'Perfect! Ready to capture',
     mouthClosedTitle: 'Open Your Mouth Wide',
     mouthClosedText: 'Show your teeth clearly',
-    readyCapture: 'Ready to Capture ✓',
+    readyCapture: 'Ready to Capture',
     openMouthWider: 'Open Mouth Wider',
     analyzingDental: 'Analyzing dental structure...',
     generatingPlan: 'Generating treatment plan...',
     savingSession: 'Saving session data...',
     preparingPlan: 'Preparing treatment plan...',
-    eligibleTitle: '✓ Eligible for Treatment',
-    reviewTitle: '⚠ Clinical Review Required',
+    eligibleTitle: 'Eligible for Treatment',
+    reviewTitle: 'Clinical Review Required',
     defaultMessage: 'Assessment complete.',
     months: 'months',
     aligners: 'aligners'
   },
   zh: {
     cameraStarting: '正在啟動...',
-    cameraActive: '攝像頭已啟動 ✓',
+    cameraActive: '攝像頭已啟動',
     cameraDenied: '拒絕訪問攝像頭',
-    faceDetected: '檢測到面部 ✓',
+    faceDetected: '檢測到面部',
     noFace: '未檢測到面部',
-    mouthOpenTitle: '有效 ✓',
+    mouthOpenTitle: '有效',
     mouthOpenText: '太棒了！準備拍攝',
     mouthClosedTitle: '請張開嘴巴',
     mouthClosedText: '請清晰露出您的牙齒進行分析',
-    readyCapture: '準備拍攝 ✓',
+    readyCapture: '準備拍攝',
     openMouthWider: '請張大嘴巴',
     analyzingDental: '正在分析牙齒結構...',
     generatingPlan: '正在生成治療方案...',
     savingSession: '正在保存會話數據...',
     preparingPlan: '正在準備治療報告...',
-    eligibleTitle: '✓ 符合治療條件',
-    reviewTitle: '⚠ 需要臨床審核',
+    eligibleTitle: '符合治療條件',
+    reviewTitle: '需要臨床審核',
     defaultMessage: '評估完成。',
     months: '個月',
     aligners: '個牙套'
@@ -189,7 +189,7 @@ let currentGenerationId = 0; // Track generation attempts
 let currentLandmarks: any[] | null = null; // Store latest face landmarks
 let currentSession: ScanSession | null = null;
 let pendingDentalAnalysis: DentalAnalysis | null = null;
-// 🦷 Tooth detection state (Roboflow ML model)
+// Tooth detection state (Roboflow ML model)
 interface ToothDetection {
   x: number;
   y: number;
@@ -216,23 +216,23 @@ interface CaptureStageConfig {
 const CAPTURE_STAGES: CaptureStageConfig[] = [
   {
     id: 'front_smile',
-    title: 'Front Smile (Bite Down)',
-    instruction: 'Gently bite on your back teeth and smile as wide as you can. Align your mouth within the guides.'
+    title: 'Front Open View',
+    instruction: 'Open your mouth wide to clearly show all your front teeth. Align your mouth within the guides.'
   },
   {
     id: 'lower_front',
-    title: 'Lower Front Teeth',
-    instruction: 'Raise your phone, open your mouth wide, and clearly show your lower front teeth by pulling your lips away.'
+    title: 'Lower Teeth View',
+    instruction: 'Open your mouth wide and tilt your head down slightly to show your lower teeth clearly.'
   },
   {
     id: 'upper_front',
-    title: 'Upper Front Teeth',
-    instruction: 'Angle your phone downward, open wide, and clearly show your upper front teeth while keeping lips out of the way.'
+    title: 'Upper Teeth View',
+    instruction: 'Open your mouth wide and tilt your head up slightly to show your upper teeth clearly.'
   },
   {
     id: 'side_bite',
-    title: 'Side Bite (Profile)',
-    instruction: 'Turn your head to the side, bite evenly on your back teeth, and smile broadly.'
+    title: 'Side Open View',
+    instruction: 'Turn your head significantly to the side and open your mouth wide to show your side teeth.'
   }
 ];
 
@@ -249,7 +249,7 @@ let stageLastDetectTime = 0;
 function initializeFaceMesh() {
   if (faceMesh) return; // Already initialized
 
-  console.log('🏗️ [DEBUG] Initializing common FaceMesh instance...');
+  console.log('[DEBUG] Initializing common FaceMesh instance...');
   faceMesh = new FaceMeshConstructor({
     locateFile: (file: string) => {
       return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
@@ -288,8 +288,8 @@ function isMouthOpen(landmarks: any[]): boolean {
   // Calculate vertical distance between upper and lower lip
   const mouthOpenDistance = Math.abs(lowerLip.y - upperLip.y);
   
-  // Threshold for considering mouth as "open wide" (adjust as needed)
-  const threshold = 0.04; // ~4% of face height
+  // Threshold for considering mouth as "open wide" (increased for better validation)
+  const threshold = 0.05; // Increased from 0.04 to 0.05
   
   return mouthOpenDistance > threshold;
 }
@@ -407,9 +407,138 @@ function drawTeethDetections(ctx: CanvasRenderingContext2D, detections: ToothDet
   ctx.fillRect(ctx.canvas.width - 220, 10, 210, 60);
   
   ctx.fillStyle = '#00ce7c';
-  ctx.fillText(`🦷 Teeth: ${detections.length}`, ctx.canvas.width - 20, 35);
-  ctx.fillText(`📊 Avg: ${avgConfidence}%`, ctx.canvas.width - 20, 55);
+  ctx.fillText(`Teeth: ${detections.length}`, ctx.canvas.width - 20, 35);
+  ctx.fillText(`Avg: ${avgConfidence}%`, ctx.canvas.width - 20, 55);
   ctx.restore();
+}
+
+// Draw clean mouth tracking overlay - professional and minimal
+function drawCustomFaceMesh(ctx: CanvasRenderingContext2D, landmarks: any[], width: number, height: number, isValid: boolean = true, feedback: string = '') {
+  // Get mouth center and size for focus area
+  const upperLip = landmarks[13];
+  const lowerLip = landmarks[14];
+  const leftMouth = landmarks[61];
+  const rightMouth = landmarks[291];
+  
+  if (!upperLip || !lowerLip || !leftMouth || !rightMouth) return;
+  
+  const mouthCenterX = (leftMouth.x + rightMouth.x) / 2 * width;
+  const mouthCenterY = (upperLip.y + lowerLip.y) / 2 * height;
+  const mouthWidth = Math.abs((rightMouth.x - leftMouth.x) * width);
+  const mouthHeight = Math.abs((lowerLip.y - upperLip.y) * height);
+  
+  // Define colors based on validity (mouth open enough)
+  const readyColor = '#00ce7c'; // Green
+  const errorColor = '#ef4444'; // Red
+  const mainColor = isValid ? readyColor : errorColor;
+  const shadowColor = isValid ? 'rgba(0, 206, 124, 0.5)' : 'rgba(239, 68, 68, 0.5)';
+
+  // Draw clean focus frame around mouth area
+  const padding = 40;
+  const frameX = mouthCenterX - mouthWidth / 2 - padding;
+  const frameY = mouthCenterY - mouthHeight / 2 - padding;
+  const frameWidth = mouthWidth + padding * 2;
+  const frameHeight = mouthHeight + padding * 2;
+  
+  // Animated corner brackets
+  ctx.strokeStyle = mainColor;
+  ctx.lineWidth = 3;
+  ctx.shadowColor = mainColor;
+  ctx.shadowBlur = 5;
+  
+  const cornerSize = 20;
+  const time = Date.now() / 1000;
+  const pulse = Math.sin(time * 2) * 0.3 + 0.7; // Pulse between 0.4 and 1.0
+  
+  ctx.globalAlpha = pulse;
+  
+  // Corner Brackets
+  const drawCorner = (x: number, y: number, dx: number, dy: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + dx, y);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x, y + dy);
+    ctx.stroke();
+  };
+  
+  drawCorner(frameX, frameY, cornerSize, cornerSize);
+  drawCorner(frameX + frameWidth, frameY, -cornerSize, cornerSize);
+  drawCorner(frameX, frameY + frameHeight, cornerSize, -cornerSize);
+  drawCorner(frameX + frameWidth, frameY + frameHeight, -cornerSize, -cornerSize);
+  
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+  
+  // Draw detailed mouth and teeth contours
+  ctx.strokeStyle = isValid ? 'rgba(0, 206, 124, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+  ctx.lineWidth = 2.5;
+  const mouthOuter = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
+  ctx.beginPath();
+  for (let i = 0; i < mouthOuter.length; i++) {
+    const idx = mouthOuter[i];
+    if (landmarks[idx]) {
+      const x = landmarks[idx].x * width;
+      const y = landmarks[idx].y * height;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+  }
+  ctx.closePath();
+  ctx.stroke();
+  
+  // Upper/Lower teeth line
+  ctx.strokeStyle = isValid ? 'rgba(0, 206, 124, 0.6)' : 'rgba(239, 68, 68, 0.6)';
+  ctx.lineWidth = 2;
+  const upperTeeth = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308];
+  ctx.beginPath();
+  for (let i = 0; i < upperTeeth.length; i++) {
+    const idx = upperTeeth[i];
+    if (landmarks[idx]) {
+      const x = landmarks[idx].x * width;
+      const y = landmarks[idx].y * height;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+  }
+  ctx.stroke();
+  
+  const lowerTeeth = [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308];
+  ctx.beginPath();
+  for (let i = 0; i < lowerTeeth.length; i++) {
+    const idx = lowerTeeth[i];
+    if (landmarks[idx]) {
+      const x = landmarks[idx].x * width;
+      const y = landmarks[idx].y * height;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+  }
+  ctx.stroke();
+
+  // Draw feedback text centered on head
+  if (feedback) {
+    ctx.save();
+    // Mirror for CSS scaleX(-1)
+    ctx.translate(width / 2, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-width / 2, 0);
+    
+    ctx.font = 'bold 24px -apple-system, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    
+    const textMetrics = ctx.measureText(feedback);
+    const textWidth = textMetrics.width + 40;
+    ctx.fillStyle = isValid ? 'rgba(0, 206, 124, 0.8)' : 'rgba(239, 68, 68, 0.85)';
+    ctx.beginPath();
+    ctx.roundRect(width/2 - textWidth/2, height * 0.15, textWidth, 40, [20]);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.fillText(feedback, width/2, height * 0.15 + 28);
+    ctx.restore();
+  }
 }
 
 // Draw clean mouth tracking overlay - professional and minimal
@@ -419,7 +548,8 @@ function drawDentalOverlay(
   width: number, 
   height: number, 
   isReady: boolean = true,
-  stageId: string = 'preview'
+  stageId: string = 'preview',
+  feedback: string = ''
 ) {
   // Get mouth center and size for focus area
   const upperLip = landmarks[13];
@@ -434,17 +564,17 @@ function drawDentalOverlay(
   const mouthWidth = Math.abs((rightMouth.x - leftMouth.x) * width);
   const mouthHeight = Math.abs((lowerLip.y - upperLip.y) * height);
   
-  // Define colors based on ready state
+  // Use GREEN for ready, RED for not recognized/waiting as requested
   const readyColor = '#00ce7c';
-  const waitingColor = '#f08c00';
-  const mainColor = isReady ? readyColor : waitingColor;
+  const errorColor = '#ef4444'; 
+  const mainColor = isReady ? readyColor : errorColor;
 
   // 1. Draw Face Silhouette (Subtle guide for overall head position)
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.strokeStyle = isReady ? 'rgba(0, 206, 124, 0.2)' : 'rgba(239, 68, 68, 0.15)';
   ctx.lineWidth = 2;
   ctx.beginPath();
   const silCenterX = width / 2;
-  const silCenterY = height * 0.6;
+  const silCenterY = height * 0.55; 
   ctx.ellipse(silCenterX, silCenterY - height * 0.15, width * 0.25, height * 0.4, 0, 0, Math.PI * 2);
   ctx.stroke();
 
@@ -462,7 +592,7 @@ function drawDentalOverlay(
   
   const cornerSize = 25;
   const time = Date.now() / 1000;
-  const pulse = isReady ? (Math.sin(time * 3) * 0.2 + 0.8) : 0.5;
+  const pulse = isReady ? (Math.sin(time * 4) * 0.2 + 0.8) : 0.6;
   
   ctx.globalAlpha = pulse;
   
@@ -484,10 +614,10 @@ function drawDentalOverlay(
   ctx.shadowBlur = 0;
   
   // 3. Draw detailed lip and teeth contours
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   
   // A. Outer lip contour
-  ctx.strokeStyle = isReady ? 'rgba(0, 206, 124, 0.9)' : 'rgba(240, 140, 0, 0.7)';
+  ctx.strokeStyle = isReady ? 'rgba(0, 206, 124, 1.0)' : 'rgba(239, 68, 68, 0.7)';
   const mouthOuter = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
   ctx.beginPath();
   for (let i = 0; i < mouthOuter.length; i++) {
@@ -504,7 +634,7 @@ function drawDentalOverlay(
   
   // B. Teeth lines
   ctx.setLineDash([2, 2]);
-  ctx.strokeStyle = isReady ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)';
+  ctx.strokeStyle = isReady ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.4)';
   
   const upperTeeth = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308];
   ctx.beginPath();
@@ -538,17 +668,43 @@ function drawDentalOverlay(
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.lineWidth = 1;
     const targetX = width / 2;
-    const targetY = height * 0.6;
+    const targetY = height * 0.55; 
     ctx.beginPath();
     ctx.moveTo(targetX - 20, targetY); ctx.lineTo(targetX + 20, targetY);
     ctx.moveTo(targetX, targetY - 20); ctx.lineTo(targetX, targetY + 20);
     ctx.stroke();
   }
+
+  // 5. On-Canvas Feedback Text (CV Style)
+  if (feedback) {
+    ctx.save();
+    
+    // IMPORTANT: Mirror the text drawing to counteract CSS scaleX(-1) flipping
+    ctx.translate(width / 2, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-width / 2, 0);
+    
+    ctx.font = 'bold 24px -apple-system, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    
+    const textMetrics = ctx.measureText(feedback);
+    const textWidth = textMetrics.width + 40;
+    ctx.fillStyle = isReady ? 'rgba(0, 206, 124, 0.8)' : 'rgba(239, 68, 68, 0.85)';
+    ctx.beginPath();
+    ctx.roundRect(width/2 - textWidth/2, height * 0.15, textWidth, 40, [20]);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.fillText(feedback, width/2, height * 0.15 + 28);
+    ctx.restore();
+  }
 }
 
 // Draw clean mouth tracking overlay - professional and minimal
 function _drawCustomFaceMesh(ctx: CanvasRenderingContext2D, landmarks: any[], width: number, height: number) {
-  drawDentalOverlay(ctx, landmarks, width, height, mouthOpen, 'preview');
+  drawCustomFaceMesh(ctx, landmarks, width, height);
 }
 
 // Handle Face Mesh results
@@ -571,21 +727,25 @@ function onFaceMeshResults(results: any) {
     currentLandmarks = landmarks;
     mouthOpen = isMouthOpen(landmarks);
     
+    let feedback = '';
     if (!isProcessing) {
       if (mouthOpen) {
         analysisStatus.parentElement?.classList.remove('not-ready');
         analysisStatus.parentElement?.classList.add('ready');
         analysisStatus.textContent = t('readyCapture');
         captureBtn.disabled = false;
+        feedback = t('readyCapture');
       } else {
         analysisStatus.parentElement?.classList.remove('ready');
         analysisStatus.parentElement?.classList.add('not-ready');
         analysisStatus.textContent = t('openMouthWider');
         captureBtn.disabled = true;
+        feedback = t('openMouthWider');
       }
     }
     
-    drawDentalOverlay(canvasCtx, landmarks, canvasElement.width, canvasElement.height, mouthOpen, 'preview');
+    // Draw custom Beame face mesh (Original Tab 1 style)
+    drawCustomFaceMesh(canvasCtx, landmarks, canvasElement.width, canvasElement.height, mouthOpen, feedback);
   } else {
     faceDetected = false;
     mouthOpen = false;
@@ -612,10 +772,10 @@ async function getCameraStream(): Promise<MediaStream> {
   let lastError: any;
   for (const constraint of constraints) {
     try {
-      console.log('📹 [DEBUG] Attempting camera with:', constraint);
+      console.log('[DEBUG] Attempting camera with:', constraint);
       return await navigator.mediaDevices.getUserMedia(constraint);
     } catch (e) {
-      console.warn('⚠️ [DEBUG] Camera constraint failed:', constraint, e);
+      console.warn('[DEBUG] Camera constraint failed:', constraint, e);
       lastError = e;
     }
   }
@@ -687,10 +847,10 @@ async function startCamera(): Promise<boolean> {
     analysisStatus.textContent = t('openMouthWider');
     setCookie('beame_camera_allowed', 'true', 365);
     
-    console.log('✅ [DEBUG] Camera started successfully');
+    console.log('[DEBUG] Camera started successfully');
     return true;
   } catch (error) {
-    console.error('❌ [DEBUG] Camera error:', error);
+    console.error('[DEBUG] Camera error:', error);
     cameraStatus.textContent = t('cameraDenied');
     cameraStatus.style.color = '#ef4444';
     
@@ -730,10 +890,10 @@ async function simulateAnalysis(): Promise<void> {
 
 // Capture photo and process
 async function capturePhoto() {
-  console.log('📸 [DEBUG] capturePhoto function called');
+  console.log('[DEBUG] capturePhoto function called');
   
   if (!camera) {
-    console.log('📹 [DEBUG] Camera not running, attempting to start...');
+    console.log('[DEBUG] Camera not running, attempting to start...');
     const started = await startCamera();
     if (!started) {
       alert('Camera access is required to capture your photo. Please allow camera permissions and try again.');
@@ -787,7 +947,7 @@ async function capturePhoto() {
   if (currentLandmarks) {
     analysisPromises.push(
       performDentalAnalysis(cleanImageDataUrl, originalImageWithMesh).catch(error => {
-        console.error('❌ [DEBUG] Dental analysis failed:', error);
+        console.error('[DEBUG] Dental analysis failed:', error);
       })
     );
   }
@@ -855,7 +1015,7 @@ async function generateStraightenedImage(originalDataUrl: string, generationId: 
           }
         }
       } catch (modelError) {
-        console.warn(`⚠️ [DEBUG] ${modelInfo.name} failed`, modelError);
+        console.warn(`[DEBUG] ${modelInfo.name} failed`, modelError);
       }
     }
     if (generationId === currentGenerationId) await _generateStraightenedImageOld(originalDataUrl);
@@ -949,7 +1109,7 @@ async function performDentalAnalysis(cleanImageUrl: string, originalImageUrl: st
     const tab3dBtn = document.getElementById('3dTabBtn') as HTMLButtonElement;
     if (tab3dBtn) { tab3dBtn.disabled = false; tab3dBtn.classList.remove('disabled'); }
     updateProgressSteps(2);
-  } catch (error) { console.error('❌ Dental analysis failed:', error); throw error; }
+  } catch (error) { console.error('Dental analysis failed:', error); throw error; }
 }
 
 function updateProgressSteps(currentStep: number): void {
@@ -1011,7 +1171,7 @@ const eligibilityCard = document.getElementById('eligibilityCard') as HTMLDivEle
 // Start camera for 4-stage capture
 async function startStageCamera(): Promise<boolean> {
   try {
-    console.log('📸 [DEBUG] Starting stage capture camera...');
+    console.log('[DEBUG] Starting stage capture camera...');
     const stream = await getCameraStream();
     stageWebcam.muted = true;
     stageWebcam.setAttribute('playsinline', 'true');
@@ -1049,7 +1209,7 @@ async function startStageCamera(): Promise<boolean> {
     await (stageCamera as any).start();
     return true;
   } catch (error) {
-    console.error('❌ [DEBUG] Stage camera error:', error);
+    console.error('[DEBUG] Stage camera error:', error);
     return false;
   }
 }
@@ -1069,44 +1229,96 @@ function onStageFaceMeshResults(results: any) {
   if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
     const landmarks = results.multiFaceLandmarks[0];
     stageLandmarks = landmarks;
-    stageReady = validateStageAlignment(currentStage.id, landmarks, stageOverlay.width, stageOverlay.height);
     
+    // Get alignment status and feedback
+    const validation = validateStageAlignmentVerbose(currentStage.id, landmarks, stageOverlay.width, stageOverlay.height);
+    stageReady = validation.isReady;
+    
+    // Update ready badge UI
     if (stageReady) {
       stageReadyBadge.classList.add('ready');
+      stageReadyBadge.classList.remove('not-ready');
       stageReadyText.textContent = t('readyCapture');
       stageCaptureBtn.disabled = false;
     } else {
       stageReadyBadge.classList.remove('ready');
-      stageReadyText.textContent = currentLanguage === 'en' ? 'Align with markers' : '請對準標記';
+      stageReadyBadge.classList.add('not-ready');
+      stageReadyText.textContent = validation.feedback;
       stageCaptureBtn.disabled = true;
     }
-    drawDentalOverlay(canvasCtx, landmarks, stageOverlay.width, stageOverlay.height, stageReady, currentStage.id);
+
+    // Determine marker color - turn green when ready
+    drawDentalOverlay(canvasCtx, landmarks, stageOverlay.width, stageOverlay.height, stageReady, currentStage.id, validation.feedback);
   } else {
     stageLandmarks = null; stageReady = false;
     stageReadyBadge.classList.remove('ready');
+    stageReadyBadge.classList.add('not-ready');
     stageReadyText.textContent = t('noFace');
     stageCaptureBtn.disabled = true;
   }
   canvasCtx.restore();
 }
 
-function validateStageAlignment(stageId: CaptureStageId, landmarks: any[], width: number, height: number): boolean {
-  const mouthOpenDist = getMouthOpenDistance(landmarks);
-  const roll = getRollDegrees(landmarks);
-  const yaw = getYawProxy(landmarks);
-  const { mouthCenterX, mouthCenterY, mouthWidth } = getMouthMetrics(landmarks, width, height);
-  
-  const isCentered = Math.abs(mouthCenterX - width/2)/width < 0.15 && Math.abs(mouthCenterY - height*0.6)/height < 0.2;
-  const isDistanceOk = mouthWidth/width > 0.1 && mouthWidth/width < 0.6;
-  const isLevel = Math.abs(roll) < 20;
+interface AlignmentValidation {
+  isReady: boolean;
+  feedback: string;
+}
 
-  switch (stageId) {
-    case 'front_smile': return isCentered && isDistanceOk && isLevel && Math.abs(yaw) < 0.04 && mouthOpenDist < 0.05;
-    case 'lower_front':
-    case 'upper_front': return isCentered && isDistanceOk && isLevel && Math.abs(yaw) < 0.05 && mouthOpenDist > 0.035;
-    case 'side_bite': return isCentered && isDistanceOk && isLevel && Math.abs(yaw) > 0.03 && mouthOpenDist < 0.05;
-    default: return false;
+function validateStageAlignmentVerbose(stageId: CaptureStageId, landmarks: any[], width: number, height: number): AlignmentValidation {
+  const mouthOpenDist = getMouthOpenDistance(landmarks);
+  const yaw = getYawProxy(landmarks);
+  const { mouthCenterX, mouthCenterY } = getMouthMetrics(landmarks, width, height);
+  
+  // 1. Basic Framing - Keep relatively lenient but ensure face is present
+  const targetCenterY = height * 0.55; 
+  const horizontalOffset = Math.abs(mouthCenterX - width/2)/width;
+  const verticalOffset = Math.abs(mouthCenterY - targetCenterY)/height;
+  
+  if (horizontalOffset > 0.3 || verticalOffset > 0.35) {
+    return { isReady: false, feedback: currentLanguage === 'en' ? 'Center mouth' : '請對準中心' };
   }
+  
+  // 2. Stage-specific requirements
+  switch (stageId) {
+    case 'front_smile':
+      // Must be looking straight
+      if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: currentLanguage === 'en' ? 'Look straight' : '請直視前方' };
+      // Mouth must be open enough to show front teeth
+      if (mouthOpenDist < 0.045) return { isReady: false, feedback: currentLanguage === 'en' ? 'Open wider' : '請張大嘴巴' };
+      break;
+
+    case 'lower_front':
+      // Must be looking straight
+      if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: currentLanguage === 'en' ? 'Look straight' : '請直視前方' };
+      // REQUIRE JAW TO BE MUCH LOWER (No touching teeth)
+      if (mouthOpenDist < 0.1) return { isReady: false, feedback: currentLanguage === 'en' ? 'Open much wider' : '請將嘴巴張到最大' };
+      // Head must be tilted DOWN to focus on lower teeth
+      if (getPitchProxy(landmarks) < 0.015) return { isReady: false, feedback: currentLanguage === 'en' ? 'Tilt head down' : '請下傾頭部' };
+      break;
+
+    case 'upper_front':
+      // Must be looking straight
+      if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: currentLanguage === 'en' ? 'Look straight' : '請直視前方' };
+      // REQUIRE JAW TO BE MUCH LOWER (No touching teeth)
+      if (mouthOpenDist < 0.1) return { isReady: false, feedback: currentLanguage === 'en' ? 'Open much wider' : '請將嘴巴張到最大' };
+      // Head must be tilted UP to focus on upper teeth
+      if (getPitchProxy(landmarks) > -0.015) return { isReady: false, feedback: currentLanguage === 'en' ? 'Tilt head up' : '請上傾頭部' };
+      break;
+      
+    case 'side_bite':
+      // Must be turned significantly (approx 70 degrees)
+      if (Math.abs(yaw) < 0.12) return { isReady: false, feedback: currentLanguage === 'en' ? 'Turn head to 70°' : '請將頭部側轉70度' };
+      // Mouth must ALSO be open for side view
+      if (mouthOpenDist < 0.04) return { isReady: false, feedback: currentLanguage === 'en' ? 'Open wider' : '請張大嘴巴' };
+      break;
+  }
+
+  return { isReady: true, feedback: currentLanguage === 'en' ? 'READY' : '準備就緒' };
+}
+
+// Deprecated - kept for compatibility if needed elsewhere
+function validateStageAlignment(stageId: CaptureStageId, landmarks: any[], width: number, height: number): boolean {
+  return validateStageAlignmentVerbose(stageId, landmarks, width, height).isReady;
 }
 
 function getMouthOpenDistance(landmarks: any[]): number {
@@ -1119,6 +1331,12 @@ function getRollDegrees(landmarks: any[]): number {
 }
 function getYawProxy(landmarks: any[]): number {
   return landmarks[234].z - landmarks[454].z;
+}
+function getPitchProxy(landmarks: any[]): number {
+  // 152 is chin, 10 is forehead. 
+  // Positive = Chin further away (Head Tilted Down - looking at lower teeth)
+  // Negative = Chin closer (Head Tilted Up - looking at upper teeth)
+  return landmarks[152].z - landmarks[10].z;
 }
 function getMouthMetrics(landmarks: any[], width: number, height: number) {
   const centerX = ((landmarks[61]?.x || 0.5) + (landmarks[291]?.x || 0.5)) / 2 * width;
@@ -1209,13 +1427,13 @@ downloadBtn.addEventListener('click', downloadResult);
 retryBtn.addEventListener('click', retry);
 
 async function initializeApp() {
-  console.log('🚀 [DEBUG] Beame Teeth Straightener initialized');
+  console.log('[DEBUG] Beame Teeth Straightener initialized');
   if (ENABLE_TOOTH_DETECTION) {
-    try { await loadONNXModel(ONNX_MODEL_PATH); console.log('✅ Tooth detection ready!'); } catch (error) { console.error('❌ Failed to load model', error); }
+    try { await loadONNXModel(ONNX_MODEL_PATH); console.log('Tooth detection ready!'); } catch (error) { console.error('Failed to load model', error); }
   }
   enableDiagnostics();
   const existingSession = loadCurrentSession();
-  console.log('📹 [DEBUG] Camera ready to start on user interaction');
+  console.log('[DEBUG] Camera ready to start on user interaction');
   const startOverlay = document.getElementById('cameraStartOverlay');
   if (startOverlay && !camera) {
     startOverlay.addEventListener('click', async () => {

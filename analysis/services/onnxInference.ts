@@ -25,7 +25,7 @@ export async function loadONNXModel(modelPath: string): Promise<void> {
   if (session || isLoading) return;
   
   isLoading = true;
-  console.log('🚀 Loading ONNX model locally...');
+  console.log('[DEBUG] Loading ONNX model locally...');
   
   try {
     // Configure ONNX Runtime for WebGL (GPU acceleration)
@@ -36,12 +36,12 @@ export async function loadONNXModel(modelPath: string): Promise<void> {
       executionProviders: ['webgl', 'wasm'], // Try GPU first, fallback to CPU
     });
     
-    console.log('✅ ONNX model loaded successfully!');
+    console.log('[DEBUG] ONNX model loaded successfully!');
     console.log('   Input shape:', session.inputNames);
     console.log('   Output shape:', session.outputNames);
     isLoading = false;
   } catch (error) {
-    console.error('❌ Failed to load ONNX model:', error);
+    console.error('[DEBUG] Failed to load ONNX model:', error);
     isLoading = false;
     throw error;
   }
@@ -56,7 +56,7 @@ export async function detectTeethONNX(
   inputHeight: number = 640
 ): Promise<Detection[]> {
   if (!session) {
-    console.warn('⚠️ ONNX model not loaded yet');
+    console.warn('[DEBUG] ONNX model not loaded yet');
     return [];
   }
 
@@ -69,7 +69,7 @@ export async function detectTeethONNX(
     const results = await session.run({ images: tensor });
     const endTime = performance.now();
     
-    console.log(`⚡ ONNX inference took ${(endTime - startTime).toFixed(1)}ms`);
+    console.log(`[DEBUG] ONNX inference took ${(endTime - startTime).toFixed(1)}ms`);
     
     // Post-process results
     const detections = postprocessResults(
@@ -82,7 +82,7 @@ export async function detectTeethONNX(
     
     return detections;
   } catch (error) {
-    console.error('❌ ONNX inference failed:', error);
+    console.error('[DEBUG] ONNX inference failed:', error);
     return [];
   }
 }
@@ -147,7 +147,7 @@ function postprocessResults(
   const outputData = output.data;
   const dims = output.dims;
   
-  console.log('🔍 Output dims:', dims);
+  console.log('Output dims:', dims);
   
   // YOLOv8 format: [1, 84, 8400]
   // - dims[0] = batch (1)
@@ -197,9 +197,9 @@ function postprocessResults(
       }
     }
     
-    console.log(`✅ Parsed ${detections.length} detections (threshold: ${confidenceThreshold})`);
+    console.log(`[DEBUG] Parsed ${detections.length} detections (threshold: ${confidenceThreshold})`);
   } catch (error) {
-    console.error('❌ Error parsing YOLO output:', error);
+    console.error('[DEBUG] Error parsing YOLO output:', error);
   }
   
   return detections;
@@ -219,6 +219,6 @@ export async function unloadONNXModel(): Promise<void> {
   if (session) {
     await session.release();
     session = null;
-    console.log('🗑️ ONNX model unloaded');
+    console.log('[DEBUG] ONNX model unloaded');
   }
 }

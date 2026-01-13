@@ -12,4 +12,3 @@ train_teeth_model.py
 
 # Keep the final ONNX model for deployment
 # public/models/*.onnx is NOT ignored (we need it!)
-

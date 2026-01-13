@@ -287,6 +287,10 @@ body.app-body {
 }
 
 .status-badge {
+  display: none !important;
+}
+
+.capture-step-badge {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
   padding: 8px 16px;
@@ -294,11 +298,7 @@ body.app-body {
   color: white;
   font-size: 12px;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
 }
 
 .status-badge.ready {
@@ -307,7 +307,7 @@ body.app-body {
 }
 
 .status-badge.not-ready {
-  background: rgba(240, 140, 0, 0.8); /* Orange for waiting */
+  background: rgba(239, 68, 68, 0.85); /* Red for not ready/error */
 }
 
 .status-dot {
@@ -568,8 +568,20 @@ body.app-body {
   cursor: not-allowed;
 }
 
-.tab-item .icon { font-size: 16px; }
+.tab-item .icon { font-size: 16px; display: flex; align-items: center; justify-content: center; }
 .tab-item .label { font-size: 11px; font-weight: 700; }
+
+.icon-svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
+
+.icon-svg-sm {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
 
 /* Tab Panes */
 .tab-pane {
@@ -1142,7 +1154,8 @@ body.app-body {
 }
 
 .case-card[data-case="URGENT"] .case-list li::before {
-  content: '⚠️';
+  content: '!';
+  color: #e03131;
 }
 
 /* ============================================

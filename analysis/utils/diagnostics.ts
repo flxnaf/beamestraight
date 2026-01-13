@@ -14,7 +14,7 @@ export function enableDiagnostics() {
         eligibilityBadge: !!document.getElementById('eligibilityBadge'),
         treatmentLength: !!document.getElementById('treatmentLength'),
       };
-      console.log('🔍 Element Check:', elements);
+      console.log('[DEBUG] Element Check:', elements);
       return elements;
     },
 
@@ -29,9 +29,9 @@ export function enableDiagnostics() {
         const el = document.getElementById(id);
         if (el) {
           el.style.display = 'block';
-          console.log(`✅ Showed ${id}`);
+          console.log(`[DEBUG] Showed ${id}`);
         } else {
-          console.log(`❌ Element ${id} not found`);
+          console.log(`[DEBUG] Element ${id} not found`);
         }
       });
     },
@@ -41,7 +41,7 @@ export function enableDiagnostics() {
       const session = localStorage.getItem('beame_current_session');
       if (session) {
         const parsed = JSON.parse(session);
-        console.log('💾 Current Session:', {
+        console.log('[DEBUG] Current Session:', {
           id: parsed.id,
           timestamp: new Date(parsed.timestamp).toLocaleString(),
           hasAnalysis: !!parsed.dentalAnalysis,
@@ -50,7 +50,7 @@ export function enableDiagnostics() {
         });
         return parsed;
       } else {
-        console.log('💾 No session in storage');
+        console.log('[DEBUG] No session in storage');
         return null;
       }
     },
@@ -58,27 +58,27 @@ export function enableDiagnostics() {
     // Get help
     help: () => {
       console.log(`
-🔧 Beame Diagnostics Available Commands:
+[DEBUG] Beame Diagnostics Available Commands:
 ================================================
 
 beameDiagnostics.checkElements()
-  → Check if all DOM elements exist
+  -> Check if all DOM elements exist
 
 beameDiagnostics.showAllSections()
-  → Force show treatment plan & 3D viewer (testing)
+  -> Force show treatment plan & 3D viewer (testing)
 
 beameDiagnostics.checkStorage()
-  → Check localStorage for saved session
+  -> Check localStorage for saved session
 
 beameDiagnostics.help()
-  → Show this help message
+  -> Show this help message
 
 ================================================
       `);
     }
   };
 
-  console.log('🔧 Diagnostics enabled! Type: beameDiagnostics.help()');
+  console.log('[DEBUG] Diagnostics enabled! Type: beameDiagnostics.help()');
 }
 
 // Visual indicator that analysis is running
@@ -98,7 +98,7 @@ export function showAnalysisIndicator() {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     animation: pulse 2s ease-in-out infinite;
   `;
-  indicator.textContent = '🦷 Analyzing Dental Data...';
+  indicator.textContent = 'Analyzing Dental Data...';
   document.body.appendChild(indicator);
   
   return () => {

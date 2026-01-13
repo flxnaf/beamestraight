@@ -107,15 +107,28 @@
                 <!-- Tab Navigation -->
                 <div class="app-tabs">
                     <button class="tab-item active" data-tab="preview" onclick="switchTab('preview')">
-                        <span class="icon">📸</span>
+                        <span class="icon">
+                            <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+                            </svg>
+                        </span>
                         <span class="label" data-en="AI Preview" data-zh="AI 預覽">AI Preview</span>
                     </button>
                     <button class="tab-item disabled" data-tab="plan" onclick="switchTab('plan')" id="planTabBtn" disabled>
-                        <span class="icon">📋</span>
+                        <span class="icon">
+                            <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m.75-12h-.872a2.25 2.25 0 0 0-4.256 0h-.872a2.25 2.25 0 0 0-2.25 2.25v11.25a2.25 2.25 0 0 0 2.25 2.25h11.25a2.25 2.25 0 0 0 2.25-2.25V8.25a2.25 2.25 0 0 0-2.25-2.25Z" />
+                            </svg>
+                        </span>
                         <span class="label" data-en="Treatment" data-zh="治療方案">Treatment</span>
                     </button>
                     <button class="tab-item disabled" data-tab="3d" onclick="switchTab('3d')" id="3dTabBtn" disabled>
-                        <span class="icon">🦷</span>
+                        <span class="icon">
+                            <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+                            </svg>
+                        </span>
                         <span class="label" data-en="Photo Scan" data-zh="拍攝掃描">Photo Scan</span>
                     </button>
                 </div>
@@ -145,7 +158,11 @@
                                 </div>
                             </div>
                             <div class="ai-notice">
-                                <span class="icon">💡</span>
+                                <span class="icon">
+                                    <svg class="icon-svg-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6 6 0 1 0-9 4.306c.066.413.147.821.243 1.224A.241.241 0 0 0 3.481 19h17.039a.241.241 0 0 0 .238-.17c.096-.403.177-.811.243-1.224A6 6 0 0 0 12 12.75Z" />
+                                    </svg>
+                                </span>
                                 <p data-en="This is an AI-generated simulation. Results may vary after clinical review." 
                                    data-zh="這是 AI 生成的模擬效果。實際結果可能在臨床審核後有所不同。">
                                    This is an AI-generated simulation. Results may vary after clinical review.
@@ -155,10 +172,17 @@
                         
                         <div class="actions-row">
                             <button id="downloadBtn" class="btn-app btn-outline" style="display: none;">
-                                <span data-en="💾 Save Photo" data-zh="💾 保存照片">💾 Save Photo</span>
+                                <svg class="icon-svg-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-right: 8px;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M7.5 12 12 16.5m0 0L16.5 12M12 16.5V3" />
+                                </svg>
+                                <span data-en="Save Photo" data-zh="保存照片">Save Photo</span>
                             </button>
                             <button id="retryBtn" class="btn-app btn-primary">
-                                <span data-en="📸 New Scan" data-zh="📸 重新掃描">📸 New Scan</span>
+                                <svg class="icon-svg-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-right: 8px;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+                                </svg>
+                                <span data-en="New Scan" data-zh="重新掃描">New Scan</span>
                             </button>
                         </div>
                     </div>
@@ -170,7 +194,11 @@
                                 <h4 data-en="AI Assessment" data-zh="AI 初步評估">AI Assessment</h4>
 
                                 <div class="ai-notice">
-                                    <span class="icon">⚠️</span>
+                                    <span class="icon">
+                                        <svg class="icon-svg-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                                        </svg>
+                                    </span>
                                     <p data-en="This is an AI-based assessment from a photo and is not a medical diagnosis. A dentist/orthodontist can provide the best assessment and confirm next steps."
                                        data-zh="此為基於照片的 AI 初步評估，並非醫療診斷。牙醫／矯正專科醫師可提供最佳評估並確認下一步。">
                                        This is an AI-based assessment from a photo and is not a medical diagnosis. A dentist/orthodontist can provide the best assessment and confirm next steps.
@@ -282,21 +310,33 @@
 
                             <div class="metrics-grid" id="treatmentDetails" style="display: none;">
                                 <div class="metric-card">
-                                    <div class="icon">📅</div>
+                                    <div class="icon">
+                                        <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                        </svg>
+                                    </div>
                                     <div class="data">
                                         <label data-en="Duration" data-zh="療程週期">Duration</label>
                                         <span id="treatmentLength">-</span>
                                     </div>
                                 </div>
                                 <div class="metric-card">
-                                    <div class="icon">📊</div>
+                                    <div class="icon">
+                                        <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                                        </svg>
+                                    </div>
                                     <div class="data">
                                         <label data-en="Aligners" data-zh="牙套數量">Aligners</label>
                                         <span id="stageCount">-</span>
                                     </div>
                                 </div>
                                 <div class="metric-card">
-                                    <div class="icon">⏰</div>
+                                    <div class="icon">
+                                        <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                        </svg>
+                                    </div>
                                     <div class="data">
                                         <label data-en="Wear Type" data-zh="佩戴方式">Wear Type</label>
                                         <span id="wearType">-</span>
@@ -345,8 +385,8 @@
 
                             <div class="camera-controls">
                                 <div class="stage-instruction-container">
-                                    <h3 id="stageTitle">Front Smile</h3>
-                                    <p id="stageInstruction">Gently bite on your back teeth and smile as wide as you can.</p>
+                                    <h3 id="stageTitle">Front Open View</h3>
+                                    <p id="stageInstruction">Open your mouth wide to clearly show all your front teeth. Align your mouth within the guides.</p>
                                 </div>
                                 <div class="stage-actions">
                                     <button id="stageRetakeBtn" class="btn-app btn-outline sm">
