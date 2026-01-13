@@ -1,16 +1,15 @@
 import { FaceMesh } from '@mediapipe/face_mesh';
 import { Camera } from '@mediapipe/camera_utils';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { analyzeDentalArches, generateTargetArch } from './services/archAnalysis';
+import { analyzeDentalArches } from './services/archAnalysis';
 import { generateTreatmentPlan } from './services/treatmentPlan';
-import { DentalVisualization } from './components/DentalVisualization';
 import { 
   saveCurrentSession, 
   loadCurrentSession, 
   generateSessionId,
   compressImageDataUrl 
 } from './services/storage';
-import { enableDiagnostics, showAnalysisIndicator } from './utils/diagnostics';
+import { enableDiagnostics } from './utils/diagnostics';
 import type { ScanSession, DentalAnalysis, TreatmentPlan } from './types/dental';
 import { loadONNXModel, detectTeethONNX, isONNXReady } from './services/onnxInference';
 
@@ -22,7 +21,8 @@ const _genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '')
 
 // 🦷 LOCAL TOOTH DETECTION (ONNX - Runs in browser!)
 const ONNX_MODEL_PATH = import.meta.env.VITE_ONNX_MODEL_PATH || '/models/teeth-detection.onnx';
-const ENABLE_TOOTH_DETECTION = true; // Always enabled with ONNX
+const ENABLE_TOOTH_DETECTION = true; // Run tooth detection inference
+const SHOW_TOOTH_OVERLAY = false; // 🚫 DISABLED: Model too buggy, set to true when model is stronger
 
 // Roboflow API (fallback only - slower)
 const ROBOFLOW_API_KEY = import.meta.env.VITE_ROBOFLOW_API_KEY || '';
@@ -147,12 +147,33 @@ const stageCount = document.getElementById('stageCount') as HTMLParagraphElement
 const wearType = document.getElementById('wearType') as HTMLParagraphElement;
 const correctionsList = document.getElementById('correctionsList') as HTMLDivElement;
 const treatmentReasons = document.getElementById('treatmentReasons') as HTMLUListElement;
-const rejectionCard = document.getElementById('rejectionCard') as HTMLDivElement;
+// Assessment elements (new 4-tier model)
+const assessmentCaseChip = document.getElementById('assessmentCaseChip') as HTMLSpanElement;
+const assessmentMeta = document.getElementById('assessmentMeta') as HTMLSpanElement;
 
-// 3D visualization elements
-const visualizationSection = document.getElementById('visualizationSection') as HTMLDivElement;
-const animateBtn = document.getElementById('animateBtn') as HTMLButtonElement;
-const resetViewBtn = document.getElementById('resetViewBtn') as HTMLButtonElement;
+// 4-stage capture (Tab 3) elements
+const stageWebcam = document.getElementById('stageWebcam') as HTMLVideoElement;
+const stageOverlay = document.getElementById('stageOverlay') as HTMLCanvasElement;
+const stageCaptureBtn = document.getElementById('stageCaptureBtn') as HTMLButtonElement;
+const stageRetakeBtn = document.getElementById('stageRetakeBtn') as HTMLButtonElement;
+const stageCompleteBtn = document.getElementById('stageCompleteBtn') as HTMLButtonElement;
+const stageStepEl = document.getElementById('stageStep') as HTMLSpanElement;
+const stageTitleEl = document.getElementById('stageTitle') as HTMLHeadingElement;
+const stageInstructionEl = document.getElementById('stageInstruction') as HTMLParagraphElement;
+const stageReadyBadge = document.getElementById('stageReadyBadge') as HTMLDivElement;
+const stageReadyText = document.getElementById('stageReadyText') as HTMLSpanElement;
+const thumbBtns = [
+  document.getElementById('thumb-0') as HTMLButtonElement,
+  document.getElementById('thumb-1') as HTMLButtonElement,
+  document.getElementById('thumb-2') as HTMLButtonElement,
+  document.getElementById('thumb-3') as HTMLButtonElement
+];
+const thumbImgs = [
+  document.getElementById('thumbImg-0') as HTMLImageElement,
+  document.getElementById('thumbImg-1') as HTMLImageElement,
+  document.getElementById('thumbImg-2') as HTMLImageElement,
+  document.getElementById('thumbImg-3') as HTMLImageElement
+];
 
 // State
 let camera: Camera | null = null;
@@ -163,7 +184,6 @@ let mouthOpen = false;
 let currentGenerationId = 0; // Track generation attempts
 let currentLandmarks: any[] | null = null; // Store latest face landmarks
 let currentSession: ScanSession | null = null;
-let dentalVisualization: DentalVisualization | null = null;
 let pendingDentalAnalysis: DentalAnalysis | null = null;
 // 🦷 Tooth detection state (Roboflow ML model)
 interface ToothDetection {
@@ -180,7 +200,47 @@ let currentTeethDetections: ToothDetection[] = [];
 let lastToothDetectionTime = 0;
 const TOOTH_DETECTION_INTERVAL = 1000; // Run detection every 1000ms (reduced lag)
 let isDetecting = false; // Prevent overlapping API calls
-let is3DInitialized = false;
+
+// Tab 3 (4-stage capture) state
+type CaptureStageId = 'front_smile' | 'lower_front' | 'upper_front' | 'side_bite';
+interface CaptureStageConfig {
+  id: CaptureStageId;
+  title: string;
+  instruction: string;
+}
+
+const CAPTURE_STAGES: CaptureStageConfig[] = [
+  {
+    id: 'front_smile',
+    title: 'Front Smile (Bite Down)',
+    instruction: 'Gently bite on your back teeth and smile as wide as you can. Align your mouth within the green guides.'
+  },
+  {
+    id: 'lower_front',
+    title: 'Lower Front Teeth',
+    instruction: 'Raise your phone, open your mouth wide, and clearly show your lower front teeth by pulling your lips away. Follow the green guides.'
+  },
+  {
+    id: 'upper_front',
+    title: 'Upper Front Teeth',
+    instruction: 'Angle your phone downward, open wide, and clearly show your upper front teeth while keeping lips out of the way. Follow the green guides.'
+  },
+  {
+    id: 'side_bite',
+    title: 'Side Bite (Profile)',
+    instruction: 'Turn your head to the side, bite evenly on your back teeth, and smile broadly. Use the green guides for positioning.'
+  }
+];
+
+let stageCamera: Camera | null = null;
+let stageFaceMesh: FaceMesh | null = null;
+let stageCaptures: Array<string | null> = [null, null, null, null];
+let activeStageIndex = 0;
+let stageReady = false;
+let stageLandmarks: any[] | null = null;
+let stageTeethDetections: ToothDetection[] = [];
+let stageIsDetecting = false;
+let stageLastDetectTime = 0;
 
 // Initialize MediaPipe Face Mesh
 function initializeFaceMesh() {
@@ -617,7 +677,10 @@ function onFaceMeshResults(results: any) {
 
     // Draw tooth detections if available
     if (currentTeethDetections.length > 0) {
-      drawTeethDetections(canvasCtx, currentTeethDetections);
+      // Only draw tooth overlay if enabled (model needs to be stronger first)
+      if (SHOW_TOOTH_OVERLAY) {
+        drawTeethDetections(canvasCtx, currentTeethDetections);
+      }
     }
 
     // Clear detections when mouth closes (prevent stale overlay)
@@ -793,53 +856,41 @@ async function capturePhoto() {
   // Simulate analysis
   await simulateAnalysis();
 
-  console.log('🤖 [DEBUG] Starting AI generation...');
+  console.log('🤖 [DEBUG] Starting AI generation and dental analysis in parallel...');
   console.log('🤖 [DEBUG] Passing CLEAN image data to generateStraightenedImage (no mesh)');
-  // Generate straightened image using the CLEAN image without mesh
-  await generateStraightenedImage(cleanImageDataUrl, thisGenerationId);
-
-  processingIndicator.style.display = 'none';
-  straightenedImage.style.display = 'block';
-  downloadBtn.style.display = 'inline-block';
   
-  console.log('🦷 [DEBUG] Starting dental analysis...');
-  console.log('🔍 [DEBUG] currentLandmarks status:', {
-    exists: !!currentLandmarks,
-    length: currentLandmarks?.length,
-    sample: currentLandmarks ? currentLandmarks[0] : null
-  });
+  // Run AI image generation AND dental analysis in parallel for faster results
+  const analysisPromises: Promise<void>[] = [
+    generateStraightenedImage(cleanImageDataUrl, thisGenerationId)
+  ];
   
-  // Perform dental analysis if we have landmarks
+  // Add dental analysis if we have landmarks
   if (currentLandmarks) {
-    console.log('✅ [DEBUG] Landmarks available, proceeding with dental analysis');
+    console.log('✅ [DEBUG] Landmarks available, adding dental analysis to parallel queue');
     console.log('📊 [DEBUG] Will call performDentalAnalysis with:', {
       hasCleanImage: !!cleanImageDataUrl,
       hasOriginalImage: !!originalImageWithMesh,
       landmarksCount: currentLandmarks.length
     });
     
-    const removeIndicator = showAnalysisIndicator();
-    
-    try {
-      await performDentalAnalysis(cleanImageDataUrl, originalImageWithMesh);
-      console.log('✅ [DEBUG] Dental analysis completed successfully');
-      removeIndicator();
-    } catch (error) {
-      console.error('❌ [DEBUG] Dental analysis failed:', error);
-      console.error('Stack trace:', error);
-      removeIndicator();
-      
-      // Show error to user
-      alert('Dental analysis encountered an error. Please check the console for details or try capturing again.');
-    }
+    analysisPromises.push(
+      performDentalAnalysis(cleanImageDataUrl, originalImageWithMesh).catch(error => {
+        console.error('❌ [DEBUG] Dental analysis failed:', error);
+        console.error('Stack trace:', error);
+        // Don't block the UI - just log the error
+      })
+    );
   } else {
-    console.warn('⚠️ [DEBUG] No landmarks available for dental analysis. Treatment plan and 3D visualization will not be shown.');
-    console.warn('💡 [DEBUG] This might happen if face detection was lost during capture.');
-    console.warn('💡 [DEBUG] Try capturing again while keeping your face visible and mouth open.');
-    
-    // Show user-friendly message
-    alert('Unable to analyze dental data. Please ensure your face is clearly visible and mouth is open when capturing.');
+    console.warn('⚠️ [DEBUG] No landmarks available for dental analysis. Treatment plan will not be shown.');
   }
+  
+  // Wait for all parallel operations to complete
+  await Promise.all(analysisPromises);
+  console.log('✅ [DEBUG] All parallel operations completed');
+
+  processingIndicator.style.display = 'none';
+  straightenedImage.style.display = 'block';
+  downloadBtn.style.display = 'inline-block';
   
   isProcessing = false;
   console.log('✨ [DEBUG] Capture process complete!');
@@ -1214,8 +1265,128 @@ async function _generateStraightenedImageOld(originalDataUrl: string): Promise<v
   console.log('✅ [DEBUG] Fallback method completed successfully');
 }
 
+// Classify dental case using Gemini AI (returns one of: MILD, MODERATE, COMPLEX, URGENT)
+async function classifyDentalCase(imageDataUrl: string): Promise<'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT'> {
+  console.log('🤖 [CLASSIFY] Starting AI case classification...');
+  
+  // Check if API key is configured
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+    console.warn('⚠️ [CLASSIFY] Gemini API key not configured. Using fallback classification.');
+    // Fallback: return MODERATE as a safe default
+    return 'MODERATE';
+  }
+
+  try {
+    const base64Data = imageDataUrl.split(',')[1];
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+    const prompt = `You are a dental AI assistant. Analyze this photo of teeth and classify the case into EXACTLY ONE of these 4 categories:
+
+**MILD**: Minor crowding, spacing, or rotation. Minimal bite issues. Good aligner candidate.
+**MODERATE**: Moderate crowding/rotation/spacing. May show some bite concerns. Needs orthodontic plan.
+**COMPLEX**: Severe crowding, significant bite problems (overbite/underbite/crossbite), or advanced misalignment. May need braces or complex treatment.
+**URGENT**: Signs of infection, trauma, severe swelling, bleeding, broken teeth, or other urgent dental concerns requiring immediate professional care.
+
+CRITICAL INSTRUCTIONS:
+- Respond with ONLY ONE WORD: either "MILD" or "MODERATE" or "COMPLEX" or "URGENT"
+- Do NOT add any explanation, punctuation, or extra text
+- If unsure between two categories, choose the MORE CONSERVATIVE (higher severity) option
+
+Your response:`;
+
+    console.log('📤 [CLASSIFY] Sending image to Gemini...');
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          mimeType: 'image/png',
+          data: base64Data
+        }
+      }
+    ]);
+
+    const response = await result.response;
+    const text = response.text().trim().toUpperCase();
+    
+    console.log('📥 [CLASSIFY] Raw Gemini response:', text);
+
+    // Extract the classification from response
+    if (text.includes('URGENT')) {
+      console.log('✅ [CLASSIFY] Classification: URGENT');
+      return 'URGENT';
+    } else if (text.includes('COMPLEX')) {
+      console.log('✅ [CLASSIFY] Classification: COMPLEX');
+      return 'COMPLEX';
+    } else if (text.includes('MODERATE')) {
+      console.log('✅ [CLASSIFY] Classification: MODERATE');
+      return 'MODERATE';
+    } else if (text.includes('MILD')) {
+      console.log('✅ [CLASSIFY] Classification: MILD');
+      return 'MILD';
+    } else {
+      console.warn('⚠️ [CLASSIFY] Could not parse classification from response. Defaulting to MODERATE.');
+      return 'MODERATE';
+    }
+  } catch (error) {
+    console.error('❌ [CLASSIFY] Gemini classification failed:', error);
+    console.log('🔄 [CLASSIFY] Falling back to MODERATE classification');
+    return 'MODERATE';
+  }
+}
+
+// Display AI case classification in UI
+function displayCaseClassification(classification: 'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT'): void {
+  console.log('🎨 [UI] Displaying case classification:', classification);
+  
+  const assessmentSection = document.getElementById('aiAssessmentSection');
+  const chip = document.getElementById('assessmentCaseChip');
+  const cards = document.querySelectorAll('.case-card');
+  const targetCard = document.getElementById(`caseCard-${classification}`);
+
+  if (!chip || !targetCard || !assessmentSection) {
+    console.error('❌ [UI] Could not find classification UI elements');
+    return;
+  }
+
+  // Show the AI Assessment section
+  assessmentSection.style.display = 'block';
+
+  // Update chip styling and text
+  chip.className = 'case-chip';
+  
+  const chipLabels = {
+    en: {
+      MILD: 'Mild Case',
+      MODERATE: 'Moderate Case',
+      COMPLEX: 'Complex Case',
+      URGENT: 'Urgent Case'
+    },
+    zh: {
+      MILD: '輕度個案',
+      MODERATE: '中度個案',
+      COMPLEX: '複雜個案',
+      URGENT: '緊急個案'
+    }
+  };
+
+  const label = chipLabels[currentLanguage as keyof typeof chipLabels][classification];
+  chip.textContent = label;
+  chip.setAttribute('data-en', chipLabels.en[classification]);
+  chip.setAttribute('data-zh', chipLabels.zh[classification]);
+
+  // Hide all cards
+  cards.forEach(card => card.classList.remove('active'));
+  
+  // Show the matching card
+  targetCard.classList.add('active');
+  
+  console.log('✅ [UI] Case classification displayed successfully');
+}
+
 // Perform dental analysis and treatment planning
-async function performDentalAnalysis(_cleanImageUrl: string, originalImageUrl: string): Promise<void> {
+async function performDentalAnalysis(cleanImageUrl: string, originalImageUrl: string): Promise<void> {
   if (!currentLandmarks) return;
 
   try {
@@ -1223,8 +1394,17 @@ async function performDentalAnalysis(_cleanImageUrl: string, originalImageUrl: s
     
     const dentalAnalysis: DentalAnalysis = analyzeDentalArches(currentLandmarks);
     
-    analysisStep.textContent = t('generatingPlan');
-    const treatmentPlan: TreatmentPlan = generateTreatmentPlan(dentalAnalysis);
+    // Run AI case classification in parallel with treatment plan generation
+    console.log('🔀 [DEBUG] Starting parallel: AI classification + treatment plan');
+    const [caseClassification, treatmentPlan] = await Promise.all([
+      classifyDentalCase(cleanImageUrl),
+      Promise.resolve(generateTreatmentPlan(dentalAnalysis))
+    ]);
+    
+    console.log('✅ [DEBUG] AI Classification result:', caseClassification);
+    
+    // Display the AI case classification
+    displayCaseClassification(caseClassification);
 
     analysisStep.textContent = t('savingSession');
     const compressedOriginal = await compressImageDataUrl(originalImageUrl);
@@ -1247,7 +1427,6 @@ async function performDentalAnalysis(_cleanImageUrl: string, originalImageUrl: s
     displayTreatmentPlan(treatmentPlan);
 
     pendingDentalAnalysis = dentalAnalysis;
-    is3DInitialized = false;
     
     const tab3dBtn = document.getElementById('3dTabBtn') as HTMLButtonElement;
     if (tab3dBtn) {
@@ -1277,7 +1456,23 @@ function updateProgressSteps(currentStep: number): void {
   }
 }
 
-// Display treatment plan in UI
+// Determine case type from treatment plan
+function determineCaseType(plan: TreatmentPlan): 'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT' {
+  // Map old eligibility to new 4-tier model
+  if (plan.eligibility === 'eligible') {
+    // Check complexity within eligible cases
+    const complexityScore = (plan.treatmentLengthMonths || 0) + (plan.stageCount || 0);
+    return complexityScore < 20 ? 'MILD' : 'MODERATE';
+  } else if (plan.eligibility === 'review') {
+    return 'MODERATE';
+  } else {
+    // reject -> COMPLEX (unless there are urgent signs like infection/trauma)
+    // For now, default to COMPLEX; expand this logic if you detect urgent symptoms
+    return 'COMPLEX';
+  }
+}
+
+// Display treatment plan in UI (updated for 4-tier model)
 function displayTreatmentPlan(plan: TreatmentPlan): void {
   const planTabBtn = document.getElementById('planTabBtn') as HTMLButtonElement;
   if (planTabBtn) {
@@ -1285,249 +1480,353 @@ function displayTreatmentPlan(plan: TreatmentPlan): void {
     planTabBtn.classList.remove('disabled');
   }
   
-  if (plan.eligibility === 'reject') {
-    eligibilityCard.style.display = 'none';
-    treatmentDetails.style.display = 'none';
-    rejectionCard.style.display = 'block';
-  } else {
-    eligibilityCard.style.display = 'block';
-    rejectionCard.style.display = 'none';
-    treatmentDetails.style.display = 'grid'; 
-    
-    eligibilityBadge.className = `badge ${plan.eligibility}`;
-    
-    const statusMessages = {
-      eligible: t('eligibleTitle'),
-      review: t('reviewTitle'),
-      reject: ''
-    };
-    
-    eligibilityStatus.textContent = statusMessages[plan.eligibility as keyof typeof statusMessages];
-    eligibilityMessage.textContent = plan.reasons[0] || t('defaultMessage');
-
-    treatmentLength.textContent = `${plan.treatmentLengthMonths} ${t('months')}`;
-    stageCount.textContent = `${plan.stageCount} ${t('aligners')}`;
-    wearType.textContent = plan.wearType;
-
-    correctionsList.innerHTML = '';
-    const correctionLabels: Record<string, Record<string, string>> = {
-      en: { crowdingCorrection: 'Crowding', rotationCorrection: 'Rotation', spacingCorrection: 'Spacing', midlineCorrection: 'Midline', biteCorrection: 'Bite' },
-      zh: { crowdingCorrection: '擁擠', rotationCorrection: '扭轉', spacingCorrection: '縫隙', midlineCorrection: '中線', biteCorrection: '咬合' }
-    };
-
-    for (const [key, value] of Object.entries(plan.corrections)) {
-      const tag = document.createElement('span');
-      tag.className = `correction-tag ${value ? '' : 'disabled'}`;
-      tag.textContent = (correctionLabels[currentLanguage as keyof typeof correctionLabels] as any)[key] || key;
-      correctionsList.appendChild(tag);
-    }
-
-    treatmentReasons.innerHTML = '';
-    plan.reasons.forEach(reason => {
-      const li = document.createElement('li');
-      li.textContent = reason;
-      treatmentReasons.appendChild(li);
-    });
+  // Determine case type
+  const caseType = determineCaseType(plan);
+  
+  // Show AI Assessment section with the appropriate card
+  const aiAssessmentSection = document.getElementById('aiAssessmentSection');
+  if (aiAssessmentSection) {
+    aiAssessmentSection.style.display = 'block';
   }
+  
+  // Hide all case cards, then show the matching one
+  const allCaseCards = document.querySelectorAll('.case-card');
+  allCaseCards.forEach(card => {
+    (card as HTMLElement).style.display = 'none';
+  });
+  
+  const activeCard = document.getElementById(`caseCard-${caseType}`);
+  if (activeCard) {
+    activeCard.style.display = 'block';
+  }
+  
+  // Update case chip and meta
+  const caseLabels: Record<string, string> = {
+    MILD: 'Mild Case',
+    MODERATE: 'Moderate Case',
+    COMPLEX: 'Complex Case',
+    URGENT: 'Urgent'
+  };
+  if (assessmentCaseChip) {
+    assessmentCaseChip.textContent = caseLabels[caseType] || caseType;
+    assessmentCaseChip.className = `case-chip ${caseType.toLowerCase()}`;
+  }
+  if (assessmentMeta) {
+    assessmentMeta.textContent = `Based on photo analysis • ${new Date().toLocaleDateString()}`;
+  }
+  
+  // Still populate the detailed plan sections below
+  eligibilityCard.style.display = 'block';
+  treatmentDetails.style.display = 'grid';
+  
+  eligibilityBadge.className = `badge ${plan.eligibility}`;
+  
+  const statusMessages = {
+    eligible: t('eligibleTitle'),
+    review: t('reviewTitle'),
+    reject: ''
+  };
+  
+  eligibilityStatus.textContent = statusMessages[plan.eligibility as keyof typeof statusMessages];
+  eligibilityMessage.textContent = plan.reasons[0] || t('defaultMessage');
+
+  treatmentLength.textContent = `${plan.treatmentLengthMonths} ${t('months')}`;
+  stageCount.textContent = `${plan.stageCount} ${t('aligners')}`;
+  wearType.textContent = plan.wearType;
+
+  correctionsList.innerHTML = '';
+  const correctionLabels: Record<string, Record<string, string>> = {
+    en: { crowdingCorrection: 'Crowding', rotationCorrection: 'Rotation', spacingCorrection: 'Spacing', midlineCorrection: 'Midline', biteCorrection: 'Bite' },
+    zh: { crowdingCorrection: '擁擠', rotationCorrection: '扭轉', spacingCorrection: '縫隙', midlineCorrection: '中線', biteCorrection: '咬合' }
+  };
+
+  for (const [key, value] of Object.entries(plan.corrections)) {
+    const tag = document.createElement('span');
+    tag.className = `correction-tag ${value ? '' : 'disabled'}`;
+    tag.textContent = (correctionLabels[currentLanguage as keyof typeof correctionLabels] as any)[key] || key;
+    correctionsList.appendChild(tag);
+  }
+
+  treatmentReasons.innerHTML = '';
+  plan.reasons.forEach(reason => {
+    const li = document.createElement('li');
+    li.textContent = reason;
+    treatmentReasons.appendChild(li);
+  });
 }
 
 // Helper to get eligibility card element
 const eligibilityCard = document.getElementById('eligibilityCard') as HTMLDivElement;
 
-// Initialize 3D visualization when user clicks the 3D tab (lazy init)
-async function initialize3DVisualization(): Promise<void> {
-  if (is3DInitialized || !pendingDentalAnalysis) {
-    console.log('🎨 [DEBUG] 3D already initialized or no pending analysis');
-    return;
-  }
-  
-  console.log('🎨 [DEBUG] === STARTING 3D LAZY INITIALIZATION ===');
-  
+// Start camera for 4-stage capture
+async function startStageCamera(): Promise<boolean> {
   try {
-    const analysis = pendingDentalAnalysis;
+    console.log('📸 [DEBUG] Starting stage capture camera...');
     
-    // Generate target arches (corrected versions)
-    console.log('🎯 [DEBUG] Generating target arches...');
-    const upperTarget = generateTargetArch(analysis.upperArch);
-    const lowerTarget = generateTargetArch(analysis.lowerArch);
-    console.log('🎯 [DEBUG] Target arches generated (upper + lower)');
-    
-    // Wait for tab switching to complete (called from setTimeout in switchTab)
-    console.log('🎨 [DEBUG] Tab should be visible now, checking...');
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-    // Find container
-    const container = document.getElementById('dentalVisualization');
-    if (!container) {
-      console.error('❌ [DEBUG] CRITICAL: Container not found!');
-      return;
-    }
-    
-    // Check if tab is actually visible by checking if any ancestor has display:none
-    let elem: HTMLElement | null = container;
-    const hiddenAncestors: string[] = [];
-    while (elem) {
-      const display = window.getComputedStyle(elem).display;
-      if (display === 'none') {
-        hiddenAncestors.push(`${elem.id || elem.className} (display: none)`);
-      }
-      elem = elem.parentElement;
-    }
-    
-    if (hiddenAncestors.length > 0) {
-      console.error('❌ [DEBUG] Hidden ancestors found:', hiddenAncestors);
-      // Force show them
-      hiddenAncestors.forEach(() => {
-        // Already logged, now force visibility on the critical path
-      });
-    }
-    
-    // Get the parent tab and ensure it's active
-    const tab3d = document.getElementById('tab-3d');
-    if (tab3d && !tab3d.classList.contains('active')) {
-      console.log('⚠️ [DEBUG] tab-3d is not active, forcing it...');
-      tab3d.classList.add('active');
-      tab3d.style.display = 'block';
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    const rect = container.getBoundingClientRect();
-    console.log('🎨 [DEBUG] Container dimensions:', {
-      width: rect.width,
-      height: rect.height,
-      containerParentWidth: container.parentElement?.clientWidth,
-      tab3dWidth: tab3d?.clientWidth
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720 }
     });
     
-    if (rect.width === 0 || rect.height === 0) {
-      console.error('❌ [DEBUG] Container has zero dimensions. Using fallback fixed size.');
-      
-      // Last resort: create a fixed-size container
-      container.style.position = 'relative';
-      container.style.width = '800px';
-      container.style.height = '400px';
-      container.style.margin = '0 auto';
-      container.style.display = 'block';
-      
-      // Force layout
-      container.offsetHeight;
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      const newRect = container.getBoundingClientRect();
-      console.log('🎨 [DEBUG] Fallback dimensions:', {
-        width: newRect.width,
-        height: newRect.height
-      });
-      
-      if (newRect.width === 0 || newRect.height === 0) {
-        console.error('❌ [DEBUG] Even fallback failed!');
-        const loadingIndicator = container.querySelector('.viewer-loading') as HTMLElement;
-        if (loadingIndicator) {
-          loadingIndicator.innerHTML = `
-            <p style="color: #ef4444; font-weight: 600;">Unable to Load 3D Viewer</p>
-            <p style="font-size: 0.875rem;">Please try refreshing the page.</p>
-          `;
-        }
-        return;
+    stageWebcam.srcObject = stream;
+    
+    await new Promise((resolve) => {
+      stageWebcam.onloadedmetadata = () => {
+        resolve(true);
+      };
+    });
+
+    // Initialize FaceMesh for stage capture
+    stageFaceMesh = new FaceMesh({
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
       }
-    }
+    });
+
+    stageFaceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    stageFaceMesh.onResults(onStageFaceMeshResults);
+
+    stageCamera = new Camera(stageWebcam, {
+      onFrame: async () => {
+        if (stageFaceMesh) {
+          await stageFaceMesh.send({ image: stageWebcam });
+        }
+      },
+      width: 1280,
+      height: 720
+    });
+
+    await stageCamera.start();
+    console.log('✅ [DEBUG] Stage camera started successfully');
     
-    console.log('🎨 [DEBUG] Creating DentalVisualization instance...');
-    
-    // Hide loading indicator
-    const loadingIndicator = container.querySelector('.viewer-loading') as HTMLElement;
-    if (loadingIndicator) {
-      loadingIndicator.style.display = 'none';
-    }
-    
-    dentalVisualization = new DentalVisualization(
-      'dentalVisualization',
-      analysis.upperArch,
-      upperTarget,
-      analysis.lowerArch,
-      lowerTarget
-    );
-    
-    console.log('✅ [DEBUG] DentalVisualization instance created');
-    
-    const canvas = container.querySelector('canvas');
-    console.log('🎨 [DEBUG] Canvas found:', !!canvas);
-    
-    if (!canvas) {
-      console.error('❌ [DEBUG] No canvas found after creating visualization!');
-      return;
-    }
-    
-    // Setup controls
-    setupVisualizationControls();
-    console.log('✅ [DEBUG] 3D Visualization fully initialized');
-    
-    is3DInitialized = true;
-    
+    return true;
   } catch (error) {
-    console.error('❌ [DEBUG] FAILED TO CREATE 3D VISUALIZATION');
-    console.error('❌ [DEBUG] Error:', error);
-    
-    // Show error message
-    const container = document.getElementById('dentalVisualization');
-    const loadingIndicator = container?.querySelector('.viewer-loading') as HTMLElement;
-    if (loadingIndicator) {
-      loadingIndicator.innerHTML = `
-        <p style="color: #ef4444; font-weight: 600;">3D Viewer Error</p>
-        <p style="font-size: 0.875rem;">${(error as Error).message || 'Unknown error'}</p>
-      `;
-    }
+    console.error('❌ [DEBUG] Failed to start stage camera:', error);
+    alert(currentLanguage === 'en' ? 'Failed to access camera. Please ensure camera permissions are granted.' : '無法訪問攝像頭。請確保已授予攝像頭權限。');
+    return false;
   }
 }
 
-// Setup 3D visualization controls
-function setupVisualizationControls(): void {
-  // View buttons
-  document.querySelectorAll('.view-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const target = e.target as HTMLButtonElement;
-      const view = target.dataset.view as 'front' | 'top' | 'left' | 'right';
-      
-      if (dentalVisualization && view) {
-        dentalVisualization.setView(view);
-        
-        // Update active state
-        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-        target.classList.add('active');
-      }
-    });
+// Handle FaceMesh results for stage capture
+function onStageFaceMeshResults(results: any) {
+  const canvasCtx = stageOverlay.getContext('2d')!;
+  
+  // Use video dimensions for internal canvas resolution
+  if (stageOverlay.width !== stageWebcam.videoWidth || stageOverlay.height !== stageWebcam.videoHeight) {
+    stageOverlay.width = stageWebcam.videoWidth;
+    stageOverlay.height = stageWebcam.videoHeight;
+  }
+
+  canvasCtx.save();
+  canvasCtx.clearRect(0, 0, stageOverlay.width, stageOverlay.height);
+  
+  // Draw the video frame first (mirroring is handled by CSS transform)
+  canvasCtx.drawImage(results.image, 0, 0, stageOverlay.width, stageOverlay.height);
+
+  if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+    stageLandmarks = results.multiFaceLandmarks[0];
+    
+    // Validate based on current stage
+    const currentStage = CAPTURE_STAGES[activeStageIndex];
+    stageReady = stageLandmarks ? validateStageAlignment(currentStage.id, stageLandmarks, stageOverlay.width, stageOverlay.height) : false;
+    
+    // Update ready badge
+    if (stageReady) {
+      stageReadyBadge.classList.add('ready');
+      stageReadyText.textContent = currentLanguage === 'en' ? '✓ Ready to Capture' : '✓ 準備拍攝';
+      stageCaptureBtn.disabled = false;
+    } else {
+      stageReadyBadge.classList.remove('ready');
+      stageReadyText.textContent = currentLanguage === 'en' ? '⚠ Position your face' : '⚠ 調整面部位置';
+      stageCaptureBtn.disabled = true;
+    }
+    
+    // Draw alignment guides
+    if (stageLandmarks) {
+      drawStageGuides(canvasCtx, stageLandmarks, stageOverlay.width, stageOverlay.height, currentStage.id);
+    }
+  } else {
+    stageLandmarks = null;
+    stageReady = false;
+    stageReadyBadge.classList.remove('ready');
+    stageReadyText.textContent = currentLanguage === 'en' ? '⚠ No face detected' : '⚠ 未檢測到面部';
+    stageCaptureBtn.disabled = true;
+  }
+
+  canvasCtx.restore();
+}
+
+// Validate alignment for each stage
+function validateStageAlignment(stageId: CaptureStageId, landmarks: any[], width: number, height: number): boolean {
+  const mouthOpen = getMouthOpenDistance(landmarks);
+  const roll = getRollDegrees(landmarks);
+  const yawProxy = getYawProxy(landmarks);
+  
+  switch (stageId) {
+    case 'front_smile':
+      // Front smile: mouth closed, face straight
+      return mouthOpen < 0.03 && Math.abs(roll) < 10 && Math.abs(yawProxy) < 0.02;
+    case 'lower_front':
+    case 'upper_front':
+      // Lower/upper: mouth open, face straight
+      return mouthOpen > 0.05 && Math.abs(roll) < 15 && Math.abs(yawProxy) < 0.03;
+    case 'side_bite':
+      // Side bite: mouth closed, head turned
+      return mouthOpen < 0.03 && Math.abs(yawProxy) > 0.05;
+    default:
+      return false;
+  }
+}
+
+// Helper functions for validation
+function getMouthOpenDistance(landmarks: any[]): number {
+  const upperLip = landmarks[13];
+  const lowerLip = landmarks[14];
+  if (!upperLip || !lowerLip) return 0;
+  return Math.abs(lowerLip.y - upperLip.y);
+}
+
+function getRollDegrees(landmarks: any[]): number {
+  const leftEye = landmarks[33];
+  const rightEye = landmarks[263];
+  if (!leftEye || !rightEye) return 0;
+  const dy = leftEye.y - rightEye.y;
+  const dx = leftEye.x - rightEye.x;
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
+}
+
+function getYawProxy(landmarks: any[]): number {
+  const leftCheek = landmarks[234];
+  const rightCheek = landmarks[454];
+  if (!leftCheek || !rightCheek) return 0;
+  return leftCheek.z - rightCheek.z;
+}
+
+// Draw alignment guides on overlay
+function drawStageGuides(ctx: CanvasRenderingContext2D, landmarks: any[], width: number, height: number, stageId: CaptureStageId) {
+  const { mouthCenterX, mouthCenterY, mouthWidth, mouthHeight } = getMouthMetrics(landmarks, width, height);
+  
+  // Draw guide circle/ellipse
+  ctx.strokeStyle = stageReady ? '#00ce7c' : '#f08c00';
+  ctx.lineWidth = 3;
+  ctx.shadowColor = stageReady ? '#00ce7c' : '#f08c00';
+  ctx.shadowBlur = 8;
+  
+  if (stageId === 'front_smile' || stageId === 'side_bite') {
+    // Closed mouth guide - horizontal ellipse
+    ctx.beginPath();
+    ctx.ellipse(mouthCenterX, mouthCenterY, mouthWidth * 0.6, mouthHeight * 2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    // Open mouth guide - circular
+    ctx.beginPath();
+    ctx.ellipse(mouthCenterX, mouthCenterY, mouthWidth * 0.7, mouthHeight * 2.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  
+  ctx.shadowBlur = 0;
+}
+
+function getMouthMetrics(landmarks: any[], width: number, height: number) {
+  const upperLip = landmarks[13];
+  const lowerLip = landmarks[14];
+  const leftMouth = landmarks[61];
+  const rightMouth = landmarks[291];
+
+  const mouthCenterX = ((leftMouth?.x || 0.5) + (rightMouth?.x || 0.5)) / 2 * width;
+  const mouthCenterY = ((upperLip?.y || 0.5) + (lowerLip?.y || 0.5)) / 2 * height;
+  const mouthWidth = Math.abs(((rightMouth?.x || 0.55) - (leftMouth?.x || 0.45)) * width);
+  const mouthHeight = Math.abs(((lowerLip?.y || 0.52) - (upperLip?.y || 0.48)) * height);
+
+  return { mouthCenterX, mouthCenterY, mouthWidth, mouthHeight };
+}
+
+// Initialize tab 3 (4-stage capture) when user clicks it
+async function initializeStageCapture(): Promise<void> {
+  console.log('📸 [DEBUG] Initializing 4-stage capture tab...');
+  
+  // Start camera for the stage capture if not already running
+  if (!stageCamera) {
+    await startStageCamera();
+  }
+  
+  // Update UI for first stage
+  updateStageUI();
+}
+
+// Update stage UI (instructions, thumbnails, etc.)
+function updateStageUI() {
+  const stage = CAPTURE_STAGES[activeStageIndex];
+  if (stageStepEl) stageStepEl.textContent = `${activeStageIndex + 1} of 4`;
+  if (stageTitleEl) stageTitleEl.textContent = stage.title;
+  if (stageInstructionEl) stageInstructionEl.textContent = stage.instruction;
+  
+  // Update thumbnail active states
+  thumbBtns.forEach((btn, idx) => {
+    if (btn) {
+      btn.classList.toggle('active', idx === activeStageIndex);
+      btn.classList.toggle('captured', stageCaptures[idx] !== null);
+    }
   });
 
-  // Show Treatment Result button - animates teeth to corrected positions
-  if (animateBtn && dentalVisualization) {
-    animateBtn.addEventListener('click', () => {
-      if (dentalVisualization) {
-        dentalVisualization.startInterpolation(2000);
-        animateBtn.disabled = true;
-        animateBtn.textContent = '⏳ Showing...';
-        setTimeout(() => {
-          animateBtn.disabled = false;
-          animateBtn.innerHTML = `<span>✓</span> ${currentLanguage === 'en' ? 'Treatment Result' : '治療效果'}`;
-        }, 2000);
-      }
-    });
+  // Toggle buttons based on whether all stages are captured
+  const allCaptured = stageCaptures.every(img => img !== null);
+  if (stageCompleteBtn) {
+    stageCompleteBtn.style.display = allCaptured ? 'block' : 'none';
   }
+}
 
-  // Show Current button - returns teeth to original positions
-  if (resetViewBtn && dentalVisualization) {
-    resetViewBtn.addEventListener('click', () => {
-      if (dentalVisualization) {
-        dentalVisualization.resetToCurrentArch();
-        
-        // DON'T reset camera view - keep current view for comparison!
-        
-        // Reset animation button text
-        if (animateBtn) {
-          animateBtn.innerHTML = '<span>▶</span> Show Treatment Result';
-        }
-      }
-    });
-  }
+// Capture button handler
+if (stageCaptureBtn) {
+  stageCaptureBtn.addEventListener('click', () => {
+    if (!stageReady) {
+      console.log('⚠️ [DEBUG] Stage not ready for capture');
+      return;
+    }
+    
+    console.log(`📸 [DEBUG] Capturing photo for stage ${activeStageIndex + 1}`);
+    
+    // Capture photo
+    const captureCanvas = document.createElement('canvas');
+    captureCanvas.width = stageWebcam.videoWidth;
+    captureCanvas.height = stageWebcam.videoHeight;
+    const ctx = captureCanvas.getContext('2d')!;
+    ctx.drawImage(stageWebcam, 0, 0);
+    
+    const dataUrl = captureCanvas.toDataURL('image/png');
+    stageCaptures[activeStageIndex] = dataUrl;
+    
+    // Update thumbnail
+    if (thumbImgs[activeStageIndex]) {
+      thumbImgs[activeStageIndex].src = dataUrl;
+      thumbImgs[activeStageIndex].style.display = 'block';
+    }
+    
+    // Move to next stage
+    if (activeStageIndex < 3) {
+      activeStageIndex++;
+      updateStageUI();
+    } else {
+      // All 4 captured
+      console.log('✅ All 4 stages captured!');
+      updateStageUI();
+    }
+  });
+}
+
+// Done button handler
+if (stageCompleteBtn) {
+  stageCompleteBtn.addEventListener('click', () => {
+    alert(currentLanguage === 'en' ? 'Photos submitted! Our clinicians will review them.' : '照片已提交！我們的臨床醫生將進行審核。');
+    // Switch back to treatment plan tab
+    const switchTabFn = (window as any).switchTab;
+    if (switchTabFn) switchTabFn('plan');
+  });
 }
 
 // Download result
@@ -1540,16 +1839,40 @@ function downloadResult() {
 
 // Retry - go back to camera
 async function retry() {
-  // Cleanup 3D visualization
-  if (dentalVisualization) {
-    dentalVisualization.dispose();
-    dentalVisualization = null;
+  // Cleanup stage capture
+  if (stageCamera) {
+    const stream = stageWebcam.srcObject as MediaStream | null;
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+    }
+    stageWebcam.srcObject = null;
+    stageCamera = null;
   }
+  if (stageFaceMesh) {
+    stageFaceMesh = null;
+  }
+  
   pendingDentalAnalysis = null;
-  is3DInitialized = false;
+  stageCaptures = [null, null, null, null];
+  activeStageIndex = 0;
+  
+  // Clear stage thumbnails
+  thumbImgs.forEach(img => {
+    if (img) {
+      img.src = '';
+      img.style.display = 'none';
+    }
+  });
+  if (stageCompleteBtn) stageCompleteBtn.style.display = 'none';
 
   // Hide main results section
   resultsSection.style.display = 'none';
+  
+  // Hide AI Assessment section
+  const assessmentSection = document.getElementById('aiAssessmentSection');
+  if (assessmentSection) {
+    assessmentSection.style.display = 'none';
+  }
   
   // Disable tab buttons
   const planTabBtn = document.getElementById('planTabBtn') as HTMLButtonElement;
@@ -1657,12 +1980,12 @@ async function initializeApp() {
   // Log available elements
   console.log('🔍 [DEBUG] Checking DOM elements...');
   console.log('  - treatmentPlanSection:', !!treatmentPlanSection);
-  console.log('  - visualizationSection:', !!visualizationSection);
-  console.log('  - dentalVisualization container:', !!document.getElementById('dentalVisualization'));
+  console.log('  - stageWebcam:', !!stageWebcam);
+  console.log('  - stageOverlay:', !!stageOverlay);
 }
 
-// Expose initialize3DVisualization to window for tab switching
-(window as any).initialize3DVisualization = initialize3DVisualization;
+// Expose initializeStageCapture to window for tab switching
+(window as any).initializeStageCapture = initializeStageCapture;
 
 // Call initialization
 initializeApp();
