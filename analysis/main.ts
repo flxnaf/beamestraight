@@ -21,8 +21,8 @@ const _genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '')
 
 // 🦷 LOCAL TOOTH DETECTION (ONNX - Runs in browser!)
 const ONNX_MODEL_PATH = import.meta.env.VITE_ONNX_MODEL_PATH || '/models/teeth-detection.onnx';
-const ENABLE_TOOTH_DETECTION = true; // Run tooth detection inference
-const SHOW_TOOTH_OVERLAY = false; // 🚫 DISABLED: Model too buggy, set to true when model is stronger
+const ENABLE_TOOTH_DETECTION = false; // 🚫 DISABLED: Model too buggy and causes lag
+const SHOW_TOOTH_OVERLAY = false; // 🚫 DISABLED: Hide overlay (only relevant if detection is enabled)
 
 // Roboflow API (fallback only - slower)
 const ROBOFLOW_API_KEY = import.meta.env.VITE_ROBOFLOW_API_KEY || '';
@@ -1950,29 +1950,42 @@ async function initializeApp() {
   console.log('  - Gemini API Key:', import.meta.env.VITE_GEMINI_API_KEY ? 'Configured ✓' : 'NOT configured ✗');
   console.log('');
   console.log('🦷 [TOOTH DETECTION]:');
-  console.log('  - Mode: LOCAL ONNX ⚡ (Browser-based, like SmileSet!)');
-  console.log('  - Model Path:', ONNX_MODEL_PATH);
-  console.log('  - Update Rate: ~30 FPS (33ms) - MediaPipe speed!');
-  console.log('  - Runs in browser: ✅ Yes (WebGL/WebAssembly)');
-  console.log('  - API calls: ❌ None (100% local)');
-  console.log('');
-  
-  console.log('📥 Loading tooth detection model...');
-  
-  console.log('  - Mode:', import.meta.env.MODE);
-  console.log('  - Base URL:', import.meta.env.BASE_URL);
-
-  // Load ONNX model for local tooth detection
-  try {
-    await loadONNXModel(ONNX_MODEL_PATH);
-    console.log('✅ Tooth detection ready! Model running locally in browser.');
-    console.log('💡 No API calls, instant detection, works offline!');
-  } catch (error) {
-    console.error('❌ Failed to load tooth detection model:', error);
-    console.error('💡 Make sure model file exists at:', ONNX_MODEL_PATH);
-    console.error('📖 See ONNX_LOCAL_SETUP.md for setup instructions');
+  if (ENABLE_TOOTH_DETECTION) {
+    console.log('  - Status: ✅ ENABLED');
+    console.log('  - Mode: LOCAL ONNX ⚡ (Browser-based, like SmileSet!)');
+    console.log('  - Model Path:', ONNX_MODEL_PATH);
+    console.log('  - Update Rate: ~30 FPS (33ms) - MediaPipe speed!');
+    console.log('  - Runs in browser: ✅ Yes (WebGL/WebAssembly)');
+    console.log('  - API calls: ❌ None (100% local)');
+  } else {
+    console.log('  - Status: 🚫 DISABLED (model too buggy, causes lag)');
+    console.log('  - Reason: Current model is undertrained and needs 50+ epochs');
+    console.log('  - To enable: Set ENABLE_TOOTH_DETECTION = true in main.ts');
   }
   console.log('');
+  
+  if (ENABLE_TOOTH_DETECTION) {
+    console.log('📥 Loading tooth detection model...');
+    
+    console.log('  - Mode:', import.meta.env.MODE);
+    console.log('  - Base URL:', import.meta.env.BASE_URL);
+
+    // Load ONNX model for local tooth detection
+    try {
+      await loadONNXModel(ONNX_MODEL_PATH);
+      console.log('✅ Tooth detection ready! Model running locally in browser.');
+      console.log('💡 No API calls, instant detection, works offline!');
+    } catch (error) {
+      console.error('❌ Failed to load tooth detection model:', error);
+      console.error('💡 Make sure model file exists at:', ONNX_MODEL_PATH);
+      console.error('📖 See ONNX_LOCAL_SETUP.md for setup instructions');
+    }
+    console.log('');
+  } else {
+    console.log('🚫 Tooth detection DISABLED (model too buggy, causes lag)');
+    console.log('💡 Set ENABLE_TOOTH_DETECTION = true when you have a better model');
+    console.log('');
+  }
 
   // Enable diagnostics
   enableDiagnostics();
