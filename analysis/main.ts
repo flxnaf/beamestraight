@@ -14,7 +14,7 @@ import type { ScanSession, DentalAnalysis, TreatmentPlan } from './types/dental'
 import { loadONNXModel, detectTeethONNX, isONNXReady } from './services/onnxInference';
 
 // ⚙️ CONFIGURATION: Set to true to save API credits during development
-const USE_FALLBACK_MODE = true; // Set to false to enable real AI generation
+const USE_FALLBACK_MODE = false; // Set to false to enable real AI generation
 
 // Initialize Gemini AI (unused in fallback mode)
 const _genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
@@ -705,36 +705,78 @@ function onFaceMeshResults(results: any) {
   canvasCtx.restore();
 }
 
+// Helper to get camera stream with fallbacks
+async function getCameraStream(): Promise<MediaStream> {
+  const constraints = [
+    { video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } },
+    { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } },
+    { video: true }
+  ];
+
+  let lastError: any;
+  for (const constraint of constraints) {
+    try {
+      console.log('📹 [DEBUG] Attempting camera with:', constraint);
+      return await navigator.mediaDevices.getUserMedia(constraint);
+    } catch (e) {
+      console.warn('⚠️ [DEBUG] Camera constraint failed:', constraint, e);
+      lastError = e;
+    }
+  }
+  throw lastError;
+}
+
 // Start camera
 async function startCamera(): Promise<boolean> {
   try {
     cameraStatus.textContent = t('cameraStarting');
     
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 1280, height: 720 }
-    });
+    const stream = await getCameraStream();
     
+    webcamElement.muted = true;
+    webcamElement.setAttribute('playsinline', 'true');
     webcamElement.srcObject = stream;
     
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Camera timeout')), 10000);
       webcamElement.onloadedmetadata = () => {
-        resolve(true);
+        clearTimeout(timeout);
+        webcamElement.play().then(resolve).catch(reject);
       };
     });
 
     initializeFaceMesh();
 
-    camera = new Camera(webcamElement, {
-      onFrame: async () => {
-        if (faceMesh) {
-          await faceMesh.send({ image: webcamElement });
+    // Use custom loop instead of MediaPipe Camera class to avoid double getUserMedia calls
+    // which causes permission conflicts on many mobile browsers/Vercel
+    const cameraLoop = {
+      active: true,
+      stop: () => {
+        cameraLoop.active = false;
+        if (webcamElement.srcObject) {
+          const s = webcamElement.srcObject as MediaStream;
+          s.getTracks().forEach(track => track.stop());
+          webcamElement.srcObject = null;
         }
       },
-      width: 1280,
-      height: 720
-    });
+      start: async () => {
+        const processFrame = async () => {
+          if (!cameraLoop.active) return;
+          if (faceMesh && webcamElement.readyState >= 2) {
+            try {
+              await faceMesh.send({ image: webcamElement });
+            } catch (err) {
+              console.warn('FaceMesh processing error:', err);
+            }
+          }
+          requestAnimationFrame(processFrame);
+        };
+        requestAnimationFrame(processFrame);
+      }
+    };
 
-    await camera.start();
+    camera = cameraLoop as any;
+    await (camera as any).start();
 
     cameraStatus.textContent = t('cameraActive');
     cameraStatus.style.color = '#00ce7c';
@@ -756,7 +798,7 @@ async function startCamera(): Promise<boolean> {
     // Set cookie to remember camera permission was granted
     setCookie('beame_camera_allowed', 'true', 365);
     
-    console.log('✅ [DEBUG] Camera started successfully - status should be GREEN');
+    console.log('✅ [DEBUG] Camera started successfully');
     
     return true;
   } catch (error) {
@@ -772,10 +814,11 @@ async function startCamera(): Promise<boolean> {
       statusDot.style.boxShadow = '0 0 10px #ef4444';
     }
     
-    // Show user-friendly error message
+    // Show detailed error message for better debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     alert(currentLanguage === 'en' 
-      ? 'Failed to access camera. Please ensure camera permissions are granted in your browser settings.' 
-      : '無法訪問攝像頭。請確保已在瀏覽器設置中授予攝像頭權限。');
+      ? `Failed to access camera: ${errorMessage}. Please ensure permissions are granted and no other app is using the camera.` 
+      : `無法訪問攝像頭: ${errorMessage}。請確保已授予權限且無其他應用正在使用攝像頭。`);
     
     return false;
   }
@@ -811,6 +854,10 @@ async function capturePhoto() {
       alert('Camera access is required to capture your photo. Please allow camera permissions and try again.');
       return;
     }
+    // Hide overlay if it was started from capture button
+    const startOverlay = document.getElementById('cameraStartOverlay');
+    if (startOverlay) startOverlay.classList.add('hidden');
+    
     // Give camera a moment to initialize
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
@@ -944,8 +991,7 @@ async function generateStraightenedImage(originalDataUrl: string, generationId: 
     return;
   }
   
-  // ORIGINAL CODE BELOW (DISABLED)
-  /*
+  // ORIGINAL CODE BELOW (ENABLED)
   try {
     // Check if API key is configured
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -954,7 +1000,7 @@ async function generateStraightenedImage(originalDataUrl: string, generationId: 
     if (!apiKey || apiKey === 'your_gemini_api_key_here') {
       console.warn('⚠️ [DEBUG] Gemini API key not configured. Using fallback method.');
       if (generationId === currentGenerationId) {
-        await generateStraightenedImageOld(originalDataUrl);
+        await _generateStraightenedImageOld(originalDataUrl);
       } else {
         console.log(`🚫 [DEBUG] Generation ${generationId} cancelled (current: ${currentGenerationId})`);
       }
@@ -1035,7 +1081,7 @@ CRITICAL: ONLY change teeth ALIGNMENT (position/straightness). Everything else i
       console.log(`🤖 [DEBUG] Attempt ${i + 1}/${modelsToTry.length}: Trying model "${modelInfo.name}" (${modelInfo.description})`);
       
       try {
-        const model = genAI.getGenerativeModel({ model: modelInfo.name });
+        const model = _genAI.getGenerativeModel({ model: modelInfo.name });
         
         console.log('📝 [DEBUG] Sending request to Gemini API...');
         console.log('⏳ [DEBUG] This may take 10-30 seconds...');
@@ -1160,7 +1206,7 @@ CRITICAL: ONLY change teeth ALIGNMENT (position/straightness). Everything else i
     // If we get here, all models failed
     console.warn('⚠️ [DEBUG] All Gemini models failed or did not generate images. Using fallback method.');
     if (generationId === currentGenerationId) {
-      await generateStraightenedImageOld(originalDataUrl);
+      await _generateStraightenedImageOld(originalDataUrl);
     } else {
       console.log(`🚫 [DEBUG] Generation ${generationId} cancelled at fallback (current: ${currentGenerationId})`);
     }
@@ -1174,12 +1220,11 @@ CRITICAL: ONLY change teeth ALIGNMENT (position/straightness). Everything else i
     // Fallback to old method if API fails
     console.log('🔄 [DEBUG] Falling back to old method...');
     if (generationId === currentGenerationId) {
-      await generateStraightenedImageOld(originalDataUrl);
+      await _generateStraightenedImageOld(originalDataUrl);
     } else {
       console.log(`🚫 [DEBUG] Generation ${generationId} cancelled at error fallback (current: ${currentGenerationId})`);
     }
   }
-  */
 }
 
 // Add Beame branding to generated image
@@ -1581,15 +1626,17 @@ async function startStageCamera(): Promise<boolean> {
   try {
     console.log('📸 [DEBUG] Starting stage capture camera...');
     
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 1280, height: 720 }
-    });
+    const stream = await getCameraStream();
     
+    stageWebcam.muted = true;
+    stageWebcam.setAttribute('playsinline', 'true');
     stageWebcam.srcObject = stream;
     
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Stage camera timeout')), 10000);
       stageWebcam.onloadedmetadata = () => {
-        resolve(true);
+        clearTimeout(timeout);
+        stageWebcam.play().then(resolve).catch(reject);
       };
     });
 
@@ -1609,23 +1656,44 @@ async function startStageCamera(): Promise<boolean> {
 
     stageFaceMesh.onResults(onStageFaceMeshResults);
 
-    stageCamera = new Camera(stageWebcam, {
-      onFrame: async () => {
-        if (stageFaceMesh) {
-          await stageFaceMesh.send({ image: stageWebcam });
+    // Use custom loop instead of MediaPipe Camera class
+    const stageLoop = {
+      active: true,
+      stop: () => {
+        stageLoop.active = false;
+        if (stageWebcam.srcObject) {
+          const s = stageWebcam.srcObject as MediaStream;
+          s.getTracks().forEach(track => track.stop());
+          stageWebcam.srcObject = null;
         }
       },
-      width: 1280,
-      height: 720
-    });
+      start: async () => {
+        const processFrame = async () => {
+          if (!stageLoop.active) return;
+          if (stageFaceMesh && stageWebcam.readyState >= 2) {
+            try {
+              await stageFaceMesh.send({ image: stageWebcam });
+            } catch (err) {
+              console.warn('Stage FaceMesh processing error:', err);
+            }
+          }
+          requestAnimationFrame(processFrame);
+        };
+        requestAnimationFrame(processFrame);
+      }
+    };
 
-    await stageCamera.start();
+    stageCamera = stageLoop as any;
+    await (stageCamera as any).start();
     console.log('✅ [DEBUG] Stage camera started successfully');
     
     return true;
   } catch (error) {
     console.error('❌ [DEBUG] Failed to start stage camera:', error);
-    alert(currentLanguage === 'en' ? 'Failed to access camera. Please ensure camera permissions are granted.' : '無法訪問攝像頭。請確保已授予攝像頭權限。');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    alert(currentLanguage === 'en' 
+      ? `Failed to access stage camera: ${errorMessage}. Please ensure permissions are granted.` 
+      : `無法訪問拍攝攝像頭: ${errorMessage}。請確保已授予權限。`);
     return false;
   }
 }
@@ -1646,35 +1714,37 @@ function onStageFaceMeshResults(results: any) {
   // Draw the video frame first (mirroring is handled by CSS transform)
   canvasCtx.drawImage(results.image, 0, 0, stageOverlay.width, stageOverlay.height);
 
+  const currentStage = CAPTURE_STAGES[activeStageIndex];
+
   if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
     stageLandmarks = results.multiFaceLandmarks[0];
     
     // Validate based on current stage
-    const currentStage = CAPTURE_STAGES[activeStageIndex];
     stageReady = stageLandmarks ? validateStageAlignment(currentStage.id, stageLandmarks, stageOverlay.width, stageOverlay.height) : false;
     
     // Update ready badge
     if (stageReady) {
       stageReadyBadge.classList.add('ready');
+      stageReadyBadge.classList.remove('not-ready');
       stageReadyText.textContent = currentLanguage === 'en' ? '✓ Ready to Capture' : '✓ 準備拍攝';
       stageCaptureBtn.disabled = false;
     } else {
       stageReadyBadge.classList.remove('ready');
-      stageReadyText.textContent = currentLanguage === 'en' ? '⚠ Position your face' : '⚠ 調整面部位置';
+      stageReadyBadge.classList.add('not-ready');
+      stageReadyText.textContent = currentLanguage === 'en' ? '⚠ Align with guides' : '⚠ 請對準引導線';
       stageCaptureBtn.disabled = true;
-    }
-    
-    // Draw alignment guides
-    if (stageLandmarks) {
-      drawStageGuides(canvasCtx, stageLandmarks, stageOverlay.width, stageOverlay.height, currentStage.id);
     }
   } else {
     stageLandmarks = null;
     stageReady = false;
     stageReadyBadge.classList.remove('ready');
+    stageReadyBadge.classList.add('not-ready');
     stageReadyText.textContent = currentLanguage === 'en' ? '⚠ No face detected' : '⚠ 未檢測到面部';
     stageCaptureBtn.disabled = true;
   }
+
+  // Draw alignment guides (fixed)
+  drawStageGuides(canvasCtx, stageOverlay.width, stageOverlay.height, currentStage.id);
 
   canvasCtx.restore();
 }
@@ -1684,18 +1754,46 @@ function validateStageAlignment(stageId: CaptureStageId, landmarks: any[], width
   const mouthOpen = getMouthOpenDistance(landmarks);
   const roll = getRollDegrees(landmarks);
   const yawProxy = getYawProxy(landmarks);
+  const { mouthCenterX, mouthCenterY, mouthWidth } = getMouthMetrics(landmarks, width, height);
   
+  // 1. Centering Check: Mouth should be near the guide center (lowered)
+  const centerX = width / 2;
+  const centerY = height * 0.6; // Matches the lowered guides
+  const horizontalOffset = Math.abs(mouthCenterX - centerX) / width;
+  const verticalOffset = Math.abs(mouthCenterY - centerY) / height;
+  
+  // More lenient centering: 15% horizontal, 20% vertical
+  const isCentered = horizontalOffset < 0.15 && verticalOffset < 0.20;
+  
+  // 2. Distance Check: Mouth width should be reasonable
+  const faceDistancePercent = mouthWidth / width;
+  // Lenient distance: 10% to 60% of screen
+  const isDistanceCorrect = faceDistancePercent > 0.10 && faceDistancePercent < 0.60;
+
+  // 3. Orientation Check: Face should be relatively level
+  const isLevel = Math.abs(roll) < 20; // Increased from 12 to 20
+
   switch (stageId) {
     case 'front_smile':
       // Front smile: mouth closed, face straight
-      return mouthOpen < 0.03 && Math.abs(roll) < 10 && Math.abs(yawProxy) < 0.02;
+      const isYawStraight = Math.abs(yawProxy) < 0.04; // Lenient
+      const isMouthStateCorrect = mouthOpen < 0.05; // Lenient
+      return isCentered && isDistanceCorrect && isLevel && isYawStraight && isMouthStateCorrect;
+      
     case 'lower_front':
     case 'upper_front':
-      // Lower/upper: mouth open, face straight
-      return mouthOpen > 0.05 && Math.abs(roll) < 15 && Math.abs(yawProxy) < 0.03;
+      // Lower/upper: mouth open wide, face straight
+      const isYawStraightOpen = Math.abs(yawProxy) < 0.05;
+      const isMouthOpenWide = mouthOpen > 0.035; // Lowered threshold
+      return isCentered && isDistanceCorrect && isLevel && isYawStraightOpen && isMouthOpenWide;
+      
     case 'side_bite':
       // Side bite: mouth closed, head turned
-      return mouthOpen < 0.03 && Math.abs(yawProxy) > 0.05;
+      const isHeadTurned = Math.abs(yawProxy) > 0.03; // Lowered from 0.04
+      const isMouthClosedSide = mouthOpen < 0.05;
+      const isCenteredSide = horizontalOffset < 0.25 && verticalOffset < 0.25;
+      return isCenteredSide && isDistanceCorrect && isLevel && isHeadTurned && isMouthClosedSide;
+      
     default:
       return false;
   }
@@ -1725,29 +1823,91 @@ function getYawProxy(landmarks: any[]): number {
   return leftCheek.z - rightCheek.z;
 }
 
-// Draw alignment guides on overlay
-function drawStageGuides(ctx: CanvasRenderingContext2D, landmarks: any[], width: number, height: number, stageId: CaptureStageId) {
-  const { mouthCenterX, mouthCenterY, mouthWidth, mouthHeight } = getMouthMetrics(landmarks, width, height);
+// Draw alignment guides on overlay (FIXED guides)
+function drawStageGuides(ctx: CanvasRenderingContext2D, width: number, height: number, stageId: CaptureStageId) {
+  const centerX = width / 2;
+  const centerY = height * 0.6; // LOWERED CENTER
   
-  // Draw guide circle/ellipse
-  ctx.strokeStyle = stageReady ? '#00ce7c' : '#f08c00';
-  ctx.lineWidth = 3;
-  ctx.shadowColor = stageReady ? '#00ce7c' : '#f08c00';
-  ctx.shadowBlur = 8;
+  ctx.save();
   
-  if (stageId === 'front_smile' || stageId === 'side_bite') {
-    // Closed mouth guide - horizontal ellipse
-    ctx.beginPath();
-    ctx.ellipse(mouthCenterX, mouthCenterY, mouthWidth * 0.6, mouthHeight * 2, 0, 0, Math.PI * 2);
-    ctx.stroke();
+  // 1. Draw Face Silhouette (Subtle guide for overall head position)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  // Simple head oval - also lowered
+  ctx.ellipse(centerX, centerY - height * 0.15, width * 0.25, height * 0.4, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 2. Draw Mouth Guide (Main target)
+  const guideWidth = width * 0.35;
+  const guideHeight = height * 0.25;
+
+  // Set style based on whether we are ready
+  const readyColor = 'rgba(0, 206, 124, 0.8)'; // Slightly transparent green
+  const waitingColor = 'rgba(255, 255, 255, 0.2)'; // Very subtle waiting
+  ctx.strokeStyle = stageReady ? readyColor : waitingColor;
+  ctx.lineWidth = 3; // Thinner lines
+  
+  if (stageReady) {
+    ctx.shadowColor = '#00ce7c';
+    ctx.shadowBlur = 10;
+    ctx.setLineDash([]);
   } else {
-    // Open mouth guide - circular
-    ctx.beginPath();
-    ctx.ellipse(mouthCenterX, mouthCenterY, mouthWidth * 0.7, mouthHeight * 2.5, 0, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.setLineDash([5, 5]); // Shorter dashes
   }
+
+  // Draw a more "dental" mouth guide (two arcs)
+  const mouthW = guideWidth * 0.6;
+  const mouthH = (stageId === 'front_smile' || stageId === 'side_bite') ? guideHeight * 0.3 : guideHeight * 0.7;
   
+  ctx.beginPath();
+  // Upper lip arc
+  ctx.moveTo(centerX - mouthW/2, centerY);
+  ctx.quadraticCurveTo(centerX, centerY - mouthH/2, centerX + mouthW/2, centerY);
+  // Lower lip arc
+  ctx.quadraticCurveTo(centerX, centerY + mouthH/2, centerX - mouthW/2, centerY);
+  ctx.stroke();
+
+  // 3. Draw Corner "Bracket" Marks
+  ctx.setLineDash([]);
+  ctx.lineWidth = 2;
   ctx.shadowBlur = 0;
+  ctx.strokeStyle = stageReady ? readyColor : 'rgba(255, 255, 255, 0.3)';
+  
+  const bracketSize = 30;
+  const pad = 20;
+  const bW = mouthW/2 + pad;
+  const bH = mouthH/2 + pad;
+
+  // Top Left
+  ctx.beginPath();
+  ctx.moveTo(centerX - bW, centerY - bH + bracketSize);
+  ctx.lineTo(centerX - bW, centerY - bH);
+  ctx.lineTo(centerX - bW + bracketSize, centerY - bH);
+  ctx.stroke();
+
+  // Top Right
+  ctx.beginPath();
+  ctx.moveTo(centerX + bW, centerY - bH + bracketSize);
+  ctx.lineTo(centerX + bW, centerY - bH);
+  ctx.lineTo(centerX + bW - bracketSize, centerY - bH);
+  ctx.stroke();
+
+  // Bottom Left
+  ctx.beginPath();
+  ctx.moveTo(centerX - bW, centerY + bH - bracketSize);
+  ctx.lineTo(centerX - bW, centerY + bH);
+  ctx.lineTo(centerX - bW + bracketSize, centerY + bH);
+  ctx.stroke();
+
+  // Bottom Right
+  ctx.beginPath();
+  ctx.moveTo(centerX + bW, centerY + bH - bracketSize);
+  ctx.lineTo(centerX + bW, centerY + bH);
+  ctx.lineTo(centerX + bW - bracketSize, centerY + bH);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 function getMouthMetrics(landmarks: any[], width: number, height: number) {
@@ -1783,6 +1943,13 @@ function updateStageUI() {
   if (stageStepEl) stageStepEl.textContent = `${activeStageIndex + 1} of 4`;
   if (stageTitleEl) stageTitleEl.textContent = stage.title;
   if (stageInstructionEl) stageInstructionEl.textContent = stage.instruction;
+  
+  // Reset ready state when switching stages
+  stageReady = false;
+  stageCaptureBtn.disabled = true;
+  stageReadyBadge.classList.remove('ready');
+  stageReadyBadge.classList.add('not-ready');
+  stageReadyText.textContent = currentLanguage === 'en' ? '⚠ Align with guides' : '⚠ 請對準引導線';
   
   // Update thumbnail active states
   thumbBtns.forEach((btn, idx) => {
@@ -1837,6 +2004,19 @@ if (stageCaptureBtn) {
   });
 }
 
+// Retake button handler
+if (stageRetakeBtn) {
+  stageRetakeBtn.addEventListener('click', () => {
+    console.log(`🔄 [DEBUG] Retaking photo for stage ${activeStageIndex + 1}`);
+    stageCaptures[activeStageIndex] = null;
+    if (thumbImgs[activeStageIndex]) {
+      thumbImgs[activeStageIndex].src = '';
+      thumbImgs[activeStageIndex].style.display = 'none';
+    }
+    updateStageUI();
+  });
+}
+
 // Done button handler
 if (stageCompleteBtn) {
   stageCompleteBtn.addEventListener('click', () => {
@@ -1846,6 +2026,17 @@ if (stageCompleteBtn) {
     if (switchTabFn) switchTabFn('plan');
   });
 }
+
+// Thumbnail click handlers to switch stages
+thumbBtns.forEach((btn, idx) => {
+  if (btn) {
+    btn.addEventListener('click', () => {
+      console.log(`🎯 [DEBUG] Switching to stage ${idx + 1}`);
+      activeStageIndex = idx;
+      updateStageUI();
+    });
+  }
+});
 
 // Download result
 function downloadResult() {
@@ -1859,11 +2050,7 @@ function downloadResult() {
 async function retry() {
   // Cleanup stage capture
   if (stageCamera) {
-    const stream = stageWebcam.srcObject as MediaStream | null;
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-    }
-    stageWebcam.srcObject = null;
+    (stageCamera as any).stop();
     stageCamera = null;
   }
   if (stageFaceMesh) {
@@ -2007,21 +2194,23 @@ async function initializeApp() {
   // This fixes mobile/Vercel issues where auto-start causes permission conflicts
   console.log('📹 [DEBUG] Camera ready to start on user interaction');
   
-  // Add click listener to start camera on first user interaction with video area
-  const videoContainer = document.querySelector('.video-container');
-  if (videoContainer && !camera) {
-    videoContainer.addEventListener('click', async () => {
+  const startOverlay = document.getElementById('cameraStartOverlay');
+  
+  // Add click listener to start camera on user interaction with overlay
+  if (startOverlay && !camera) {
+    startOverlay.addEventListener('click', async () => {
       if (!camera) {
-        console.log('📹 [DEBUG] User clicked video area, starting camera...');
+        console.log('📹 [DEBUG] User clicked start overlay, starting camera...');
         const started = await startCamera();
         if (started) {
           setCookie('beame_camera_prompted', 'true', 365);
+          startOverlay.classList.add('hidden');
         }
       }
-    }, { once: true }); // Only trigger once
+    });
     
-    // Show a visual hint that camera needs to be started
-    cameraStatus.textContent = currentLanguage === 'en' ? 'Tap to start camera' : '點擊啟動攝像頭';
+    // Initial status
+    cameraStatus.textContent = currentLanguage === 'en' ? 'Waiting for camera...' : '等待啟動攝像頭';
     cameraStatus.style.color = '#f08c00'; // Orange
     
     // Update status dot color to orange (waiting)
