@@ -1,5 +1,9 @@
 import { FaceMesh } from '@mediapipe/face_mesh';
 import { Camera } from '@mediapipe/camera_utils';
+
+// @ts-ignore
+const FaceMeshConstructor = typeof FaceMesh !== 'undefined' ? FaceMesh : (window as any).FaceMesh;
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { analyzeDentalArches } from './services/archAnalysis';
 import { generateTreatmentPlan } from './services/treatmentPlan';
@@ -177,7 +181,7 @@ const thumbImgs = [
 
 // State
 let camera: Camera | null = null;
-let faceMesh: FaceMesh | null = null;
+let faceMesh: any = null; // Reusing single FaceMesh instance
 let isProcessing = false;
 let faceDetected = false;
 let mouthOpen = false;
@@ -213,27 +217,26 @@ const CAPTURE_STAGES: CaptureStageConfig[] = [
   {
     id: 'front_smile',
     title: 'Front Smile (Bite Down)',
-    instruction: 'Gently bite on your back teeth and smile as wide as you can. Align your mouth within the green guides.'
+    instruction: 'Gently bite on your back teeth and smile as wide as you can. Align your mouth within the guides.'
   },
   {
     id: 'lower_front',
     title: 'Lower Front Teeth',
-    instruction: 'Raise your phone, open your mouth wide, and clearly show your lower front teeth by pulling your lips away. Follow the green guides.'
+    instruction: 'Raise your phone, open your mouth wide, and clearly show your lower front teeth by pulling your lips away.'
   },
   {
     id: 'upper_front',
     title: 'Upper Front Teeth',
-    instruction: 'Angle your phone downward, open wide, and clearly show your upper front teeth while keeping lips out of the way. Follow the green guides.'
+    instruction: 'Angle your phone downward, open wide, and clearly show your upper front teeth while keeping lips out of the way.'
   },
   {
     id: 'side_bite',
     title: 'Side Bite (Profile)',
-    instruction: 'Turn your head to the side, bite evenly on your back teeth, and smile broadly. Use the green guides for positioning.'
+    instruction: 'Turn your head to the side, bite evenly on your back teeth, and smile broadly.'
   }
 ];
 
 let stageCamera: Camera | null = null;
-let stageFaceMesh: FaceMesh | null = null;
 let stageCaptures: Array<string | null> = [null, null, null, null];
 let activeStageIndex = 0;
 let stageReady = false;
@@ -244,8 +247,11 @@ let stageLastDetectTime = 0;
 
 // Initialize MediaPipe Face Mesh
 function initializeFaceMesh() {
-  faceMesh = new FaceMesh({
-    locateFile: (file) => {
+  if (faceMesh) return; // Already initialized
+
+  console.log('🏗️ [DEBUG] Initializing common FaceMesh instance...');
+  faceMesh = new FaceMeshConstructor({
+    locateFile: (file: string) => {
       return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
     }
   });
@@ -257,7 +263,17 @@ function initializeFaceMesh() {
     minTrackingConfidence: 0.5
   });
 
-  faceMesh.onResults(onFaceMeshResults);
+  // We set results handler depending on the current active mode
+  faceMesh.onResults((results: any) => {
+    const is3DTab = resultsSection.style.display !== 'none' && 
+                    document.getElementById('tab-3d')?.classList.contains('active');
+    
+    if (is3DTab) {
+      onStageFaceMeshResults(results);
+    } else {
+      onFaceMeshResults(results);
+    }
+  });
 }
 
 // Check if mouth is open wide
@@ -267,6 +283,8 @@ function isMouthOpen(landmarks: any[]): boolean {
   const upperLip = landmarks[13];
   const lowerLip = landmarks[14];
   
+  if (!upperLip || !lowerLip) return false;
+  
   // Calculate vertical distance between upper and lower lip
   const mouthOpenDistance = Math.abs(lowerLip.y - upperLip.y);
   
@@ -275,8 +293,6 @@ function isMouthOpen(landmarks: any[]): boolean {
   
   return mouthOpenDistance > threshold;
 }
-
-// Note: Roboflow API detection removed - using local ONNX instead for browser-based inference
 
 // Extract tooth number from class name (e.g., "tooth_11" -> "11")
 function extractToothNumber(className: string): string {
@@ -336,23 +352,17 @@ function drawTeethDetections(ctx: CanvasRenderingContext2D, detections: ToothDet
   if (detections.length === 0) return;
 
   detections.forEach((tooth) => {
-    // Use ACTUAL tooth dimensions from detection (not fixed size!)
     const toothWidth = tooth.width;
     const toothHeight = tooth.height;
+    const radius = Math.min(toothWidth, toothHeight) * 0.15;
     
-    // Calculate adaptive corner radius based on tooth size
-    const radius = Math.min(toothWidth, toothHeight) * 0.15; // 15% of smaller dimension
-    
-    // Draw white highlight with slight transparency (SmileSet style)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.lineWidth = Math.max(2, toothWidth * 0.03); // Adaptive line width
+    ctx.lineWidth = Math.max(2, toothWidth * 0.03);
     
-    // Add glow effect (stronger for larger teeth)
     ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
     ctx.shadowBlur = Math.min(12, toothWidth * 0.15);
     
-    // Draw rounded rectangle that matches tooth shape
     ctx.beginPath();
     ctx.moveTo(tooth.x + radius, tooth.y);
     ctx.lineTo(tooth.x + toothWidth - radius, tooth.y);
@@ -369,9 +379,8 @@ function drawTeethDetections(ctx: CanvasRenderingContext2D, detections: ToothDet
     ctx.stroke();
     ctx.shadowBlur = 0;
     
-    // Draw tooth number with adaptive font size
     if (tooth.toothNumber) {
-      const fontSize = Math.max(12, Math.min(18, toothHeight * 0.3)); // Scale with tooth
+      const fontSize = Math.max(12, Math.min(18, toothHeight * 0.3));
       ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
       ctx.fillStyle = 'rgba(255, 255, 255, 1)';
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
@@ -382,22 +391,11 @@ function drawTeethDetections(ctx: CanvasRenderingContext2D, detections: ToothDet
       const textX = tooth.x + toothWidth / 2;
       const textY = tooth.y - fontSize * 0.8;
       
-      // Draw text outline
       ctx.strokeText(tooth.toothNumber, textX, textY);
       ctx.fillText(tooth.toothNumber, textX, textY);
     }
-    
-    // Optional: Draw confidence score (for debugging) - scales with tooth
-    if (tooth.confidence && toothWidth > 40) { // Only show if tooth is large enough
-      const debugFontSize = Math.max(8, toothWidth * 0.15);
-      ctx.font = `${debugFontSize}px monospace`;
-      ctx.fillStyle = 'rgba(0, 206, 124, 0.8)';
-      ctx.textAlign = 'left';
-      ctx.fillText(`${Math.round(tooth.confidence * 100)}%`, tooth.x + 3, tooth.y + toothHeight - debugFontSize - 2);
-    }
   });
   
-  // 🐛 DEBUG: Draw detection statistics in top-right corner
   const avgConfidence = detections.length > 0 
     ? (detections.reduce((sum, d) => sum + d.confidence, 0) / detections.length * 100).toFixed(0)
     : '0';
@@ -415,7 +413,14 @@ function drawTeethDetections(ctx: CanvasRenderingContext2D, detections: ToothDet
 }
 
 // Draw clean mouth tracking overlay - professional and minimal
-function drawCustomFaceMesh(ctx: CanvasRenderingContext2D, landmarks: any[], width: number, height: number) {
+function drawDentalOverlay(
+  ctx: CanvasRenderingContext2D, 
+  landmarks: any[], 
+  width: number, 
+  height: number, 
+  isReady: boolean = true,
+  stageId: string = 'preview'
+) {
   // Get mouth center and size for focus area
   const upperLip = landmarks[13];
   const lowerLip = landmarks[14];
@@ -429,61 +434,60 @@ function drawCustomFaceMesh(ctx: CanvasRenderingContext2D, landmarks: any[], wid
   const mouthWidth = Math.abs((rightMouth.x - leftMouth.x) * width);
   const mouthHeight = Math.abs((lowerLip.y - upperLip.y) * height);
   
-  // Draw clean focus frame around mouth area
+  // Define colors based on ready state
+  const readyColor = '#00ce7c';
+  const waitingColor = '#f08c00';
+  const mainColor = isReady ? readyColor : waitingColor;
+
+  // 1. Draw Face Silhouette (Subtle guide for overall head position)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const silCenterX = width / 2;
+  const silCenterY = height * 0.6;
+  ctx.ellipse(silCenterX, silCenterY - height * 0.15, width * 0.25, height * 0.4, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 2. Draw Mouth Focus Area (Pulsing corner brackets)
   const padding = 40;
   const frameX = mouthCenterX - mouthWidth / 2 - padding;
   const frameY = mouthCenterY - mouthHeight / 2 - padding;
   const frameWidth = mouthWidth + padding * 2;
   const frameHeight = mouthHeight + padding * 2;
   
-  // Animated corner brackets
-  ctx.strokeStyle = '#00ce7c';
+  ctx.strokeStyle = mainColor;
   ctx.lineWidth = 3;
-  ctx.shadowColor = '#00ce7c';
-  ctx.shadowBlur = 5;
+  ctx.shadowColor = mainColor;
+  ctx.shadowBlur = isReady ? 15 : 5;
   
-  const cornerSize = 20;
+  const cornerSize = 25;
   const time = Date.now() / 1000;
-  const pulse = Math.sin(time * 2) * 0.3 + 0.7; // Pulse between 0.4 and 1.0
+  const pulse = isReady ? (Math.sin(time * 3) * 0.2 + 0.8) : 0.5;
   
   ctx.globalAlpha = pulse;
   
-  // Top-left corner
-  ctx.beginPath();
-  ctx.moveTo(frameX + cornerSize, frameY);
-  ctx.lineTo(frameX, frameY);
-  ctx.lineTo(frameX, frameY + cornerSize);
-  ctx.stroke();
+  // Corner Brackets
+  const drawCorner = (x: number, y: number, dx: number, dy: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + dx, y);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x, y + dy);
+    ctx.stroke();
+  };
   
-  // Top-right corner
-  ctx.beginPath();
-  ctx.moveTo(frameX + frameWidth - cornerSize, frameY);
-  ctx.lineTo(frameX + frameWidth, frameY);
-  ctx.lineTo(frameX + frameWidth, frameY + cornerSize);
-  ctx.stroke();
-  
-  // Bottom-left corner
-  ctx.beginPath();
-  ctx.moveTo(frameX, frameY + frameHeight - cornerSize);
-  ctx.lineTo(frameX, frameY + frameHeight);
-  ctx.lineTo(frameX + cornerSize, frameY + frameHeight);
-  ctx.stroke();
-  
-  // Bottom-right corner
-  ctx.beginPath();
-  ctx.moveTo(frameX + frameWidth - cornerSize, frameY + frameHeight);
-  ctx.lineTo(frameX + frameWidth, frameY + frameHeight);
-  ctx.lineTo(frameX + frameWidth, frameY + frameHeight - cornerSize);
-  ctx.stroke();
+  drawCorner(frameX, frameY, cornerSize, cornerSize); // TL
+  drawCorner(frameX + frameWidth, frameY, -cornerSize, cornerSize); // TR
+  drawCorner(frameX, frameY + frameHeight, cornerSize, -cornerSize); // BL
+  drawCorner(frameX + frameWidth, frameY + frameHeight, -cornerSize, -cornerSize); // BR
   
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
   
-  // Draw detailed mouth and teeth contours
+  // 3. Draw detailed lip and teeth contours
+  ctx.lineWidth = 2;
   
-  // 1. Outer lip contour (thicker, more prominent)
-  ctx.strokeStyle = 'rgba(0, 206, 124, 0.8)';
-  ctx.lineWidth = 2.5;
+  // A. Outer lip contour
+  ctx.strokeStyle = isReady ? 'rgba(0, 206, 124, 0.9)' : 'rgba(240, 140, 0, 0.7)';
   const mouthOuter = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
   ctx.beginPath();
   for (let i = 0; i < mouthOuter.length; i++) {
@@ -491,18 +495,17 @@ function drawCustomFaceMesh(ctx: CanvasRenderingContext2D, landmarks: any[], wid
     if (landmarks[idx]) {
       const x = landmarks[idx].x * width;
       const y = landmarks[idx].y * height;
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     }
   }
+  ctx.closePath();
   ctx.stroke();
   
-  // 2. Upper lip inner edge (teeth line - upper)
-  ctx.strokeStyle = 'rgba(0, 206, 124, 0.6)';
-  ctx.lineWidth = 2;
+  // B. Teeth lines
+  ctx.setLineDash([2, 2]);
+  ctx.strokeStyle = isReady ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)';
+  
   const upperTeeth = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308];
   ctx.beginPath();
   for (let i = 0; i < upperTeeth.length; i++) {
@@ -510,18 +513,12 @@ function drawCustomFaceMesh(ctx: CanvasRenderingContext2D, landmarks: any[], wid
     if (landmarks[idx]) {
       const x = landmarks[idx].x * width;
       const y = landmarks[idx].y * height;
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     }
   }
   ctx.stroke();
   
-  // 3. Lower lip inner edge (teeth line - lower)
-  ctx.strokeStyle = 'rgba(0, 206, 124, 0.6)';
-  ctx.lineWidth = 2;
   const lowerTeeth = [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308];
   ctx.beginPath();
   for (let i = 0; i < lowerTeeth.length; i++) {
@@ -529,52 +526,29 @@ function drawCustomFaceMesh(ctx: CanvasRenderingContext2D, landmarks: any[], wid
     if (landmarks[idx]) {
       const x = landmarks[idx].x * width;
       const y = landmarks[idx].y * height;
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     }
   }
   ctx.stroke();
-  
-  // 4. Upper and lower lip midline
-  ctx.strokeStyle = 'rgba(0, 206, 124, 0.4)';
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([3, 3]);
-  
-  // Upper lip line
-  if (landmarks[13]) {
-    const centerX = landmarks[13].x * width;
-    const centerY = landmarks[13].y * height;
+  ctx.setLineDash([]);
+
+  // 4. Center Guidance crosshair (Only if not ready)
+  if (!isReady) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+    const targetX = width / 2;
+    const targetY = height * 0.6;
     ctx.beginPath();
-    ctx.moveTo(centerX - 15, centerY);
-    ctx.lineTo(centerX + 15, centerY);
+    ctx.moveTo(targetX - 20, targetY); ctx.lineTo(targetX + 20, targetY);
+    ctx.moveTo(targetX, targetY - 20); ctx.lineTo(targetX, targetY + 20);
     ctx.stroke();
   }
-  
-  // Lower lip line
-  if (landmarks[14]) {
-    const centerX = landmarks[14].x * width;
-    const centerY = landmarks[14].y * height;
-    ctx.beginPath();
-    ctx.moveTo(centerX - 15, centerY);
-    ctx.lineTo(centerX + 15, centerY);
-    ctx.stroke();
-  }
-  
-  ctx.setLineDash([]);
-  
-  // Clean scan line
-  const scanY = mouthCenterY;
-  ctx.strokeStyle = 'rgba(0, 206, 124, 0.2)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([5, 5]);
-  ctx.beginPath();
-  ctx.moveTo(frameX, scanY);
-  ctx.lineTo(frameX + frameWidth, scanY);
-  ctx.stroke();
-  ctx.setLineDash([]);
+}
+
+// Draw clean mouth tracking overlay - professional and minimal
+function _drawCustomFaceMesh(ctx: CanvasRenderingContext2D, landmarks: any[], width: number, height: number) {
+  drawDentalOverlay(ctx, landmarks, width, height, mouthOpen, 'preview');
 }
 
 // Handle Face Mesh results
@@ -594,14 +568,9 @@ function onFaceMeshResults(results: any) {
     faceStatus.style.color = '#00ce7c';
     
     const landmarks = results.multiFaceLandmarks[0];
-    
-    // Store landmarks for analysis
     currentLandmarks = landmarks;
-    
-    // Check if mouth is open
     mouthOpen = isMouthOpen(landmarks);
     
-    // Show instruction overlay
     if (!isProcessing) {
       if (mouthOpen) {
         analysisStatus.parentElement?.classList.remove('not-ready');
@@ -616,89 +585,16 @@ function onFaceMeshResults(results: any) {
       }
     }
     
-    // Draw custom Beame face mesh
-    drawCustomFaceMesh(canvasCtx, landmarks, canvasElement.width, canvasElement.height);
-
-    // 🦷 Run tooth detection (LOCAL ONNX - Browser-based, MediaPipe speed!)
-    const now = Date.now();
-    const detectionInterval = 33; // 30 FPS - Same as MediaPipe!
-    
-    if (ENABLE_TOOTH_DETECTION && mouthOpen && !isDetecting && now - lastToothDetectionTime > detectionInterval) {
-      lastToothDetectionTime = now;
-      isDetecting = true;
-      
-      if (isONNXReady()) {
-        // ⚡ LOCAL BROWSER INFERENCE - No API calls!
-        const imageData = canvasCtx.getImageData(0, 0, canvasElement.width, canvasElement.height);
-        detectTeethONNX(imageData)
-          .then(detections => {
-            // Convert ONNX detections to our format
-            const converted = detections.map(d => ({
-              x: d.x,
-              y: d.y,
-              width: d.width,
-              height: d.height,
-              confidence: d.confidence,
-              class: d.class,
-              toothNumber: extractToothNumber(d.class)
-            }));
-            
-            // 🐛 DEBUG: Log raw detections
-            console.log(`🦷 RAW DETECTIONS: ${converted.length} teeth detected`);
-            if (converted.length > 50) {
-              console.warn(`⚠️ WARNING: Too many detections (${converted.length})! Model is undertrained.`);
-              console.warn(`   This causes lag. Need 20+ epochs for better accuracy.`);
-            }
-            if (converted.length > 0) {
-              const avgConf = (converted.reduce((sum, d) => sum + d.confidence, 0) / converted.length * 100).toFixed(1);
-              const confidences = converted.map(d => (d.confidence * 100).toFixed(0) + '%').join(', ');
-              console.log(`   Average confidence: ${avgConf}%`);
-              console.log(`   All confidences: [${confidences}]`);
-            }
-            
-            // Filter to mouth region
-            const filteredDetections = filterDetectionsInMouthRegion(converted, landmarks, canvasElement.width, canvasElement.height);
-            
-            // 🐛 DEBUG: Log filtered detections
-            console.log(`✅ FILTERED: ${filteredDetections.length} teeth (removed ${converted.length - filteredDetections.length} false positives)`);
-            
-            currentTeethDetections = filteredDetections;
-            isDetecting = false;
-          })
-          .catch(err => {
-            console.error('ONNX detection error:', err);
-            isDetecting = false;
-          });
-      } else {
-        // Model not loaded yet
-        isDetecting = false;
-      }
-    }
-
-    // Draw tooth detections if available
-    if (currentTeethDetections.length > 0) {
-      // Only draw tooth overlay if enabled (model needs to be stronger first)
-      if (SHOW_TOOTH_OVERLAY) {
-        drawTeethDetections(canvasCtx, currentTeethDetections);
-      }
-    }
-
-    // Clear detections when mouth closes (prevent stale overlay)
-    if (!mouthOpen && currentTeethDetections.length > 0) {
-      currentTeethDetections = [];
-    }
+    drawDentalOverlay(canvasCtx, landmarks, canvasElement.width, canvasElement.height, mouthOpen, 'preview');
   } else {
     faceDetected = false;
     mouthOpen = false;
     currentLandmarks = null;
-    currentTeethDetections = []; // Clear tooth detections
+    currentTeethDetections = [];
     faceStatus.textContent = t('noFace');
     faceStatus.style.color = '#ef4444';
-    
-    // Reset analysis status
     analysisStatus.parentElement?.classList.remove('ready', 'not-ready');
     analysisStatus.textContent = t('openMouthWider');
-    
     captureBtn.disabled = true;
   }
 
@@ -747,8 +643,6 @@ async function startCamera(): Promise<boolean> {
 
     initializeFaceMesh();
 
-    // Use custom loop instead of MediaPipe Camera class to avoid double getUserMedia calls
-    // which causes permission conflicts on many mobile browsers/Vercel
     const cameraLoop = {
       active: true,
       stop: () => {
@@ -781,7 +675,6 @@ async function startCamera(): Promise<boolean> {
     cameraStatus.textContent = t('cameraActive');
     cameraStatus.style.color = '#00ce7c';
     
-    // Update status dot color to green
     const statusBadge = document.getElementById('cameraStatusBadge');
     const statusDot = statusBadge?.querySelector('.status-dot') as HTMLElement;
     if (statusDot) {
@@ -789,24 +682,18 @@ async function startCamera(): Promise<boolean> {
       statusDot.style.boxShadow = '0 0 10px #00ce7c';
     }
     
-    captureBtn.disabled = true; // Initially disabled until mouth is open
-    
-    // Set initial alignment status color
+    captureBtn.disabled = true;
     analysisStatus.parentElement?.classList.add('not-ready');
     analysisStatus.textContent = t('openMouthWider');
-
-    // Set cookie to remember camera permission was granted
     setCookie('beame_camera_allowed', 'true', 365);
     
     console.log('✅ [DEBUG] Camera started successfully');
-    
     return true;
   } catch (error) {
     console.error('❌ [DEBUG] Camera error:', error);
     cameraStatus.textContent = t('cameraDenied');
     cameraStatus.style.color = '#ef4444';
     
-    // Update status dot color to red
     const statusBadge = document.getElementById('cameraStatusBadge');
     const statusDot = statusBadge?.querySelector('.status-dot') as HTMLElement;
     if (statusDot) {
@@ -814,7 +701,6 @@ async function startCamera(): Promise<boolean> {
       statusDot.style.boxShadow = '0 0 10px #ef4444';
     }
     
-    // Show detailed error message for better debugging
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     alert(currentLanguage === 'en' 
       ? `Failed to access camera: ${errorMessage}. Please ensure permissions are granted and no other app is using the camera.` 
@@ -846,7 +732,6 @@ async function simulateAnalysis(): Promise<void> {
 async function capturePhoto() {
   console.log('📸 [DEBUG] capturePhoto function called');
   
-  // Check if camera is running, if not, try to start it
   if (!camera) {
     console.log('📹 [DEBUG] Camera not running, attempting to start...');
     const started = await startCamera();
@@ -854,47 +739,29 @@ async function capturePhoto() {
       alert('Camera access is required to capture your photo. Please allow camera permissions and try again.');
       return;
     }
-    // Hide overlay if it was started from capture button
     const startOverlay = document.getElementById('cameraStartOverlay');
     if (startOverlay) startOverlay.classList.add('hidden');
-    
-    // Give camera a moment to initialize
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
   
-  if (isProcessing) {
-    console.log('⚠️ [DEBUG] Already processing, ignoring capture request');
-    return;
-  }
-  
+  if (isProcessing) return;
   if (!faceDetected) {
-    console.log('⚠️ [DEBUG] No face detected');
     alert('Please ensure your face is clearly visible in the camera.');
     return;
   }
-  
   if (!mouthOpen) {
-    console.log('⚠️ [DEBUG] Mouth not open');
     alert('Please open your mouth wide to show your teeth clearly.');
     return;
   }
 
-  console.log('✅ [DEBUG] Starting capture process...');
   isProcessing = true;
-  
-  // Increment generation ID to cancel any previous in-flight requests
   currentGenerationId++;
   const thisGenerationId = currentGenerationId;
-  console.log(`🆔 [DEBUG] New generation ID: ${thisGenerationId}`);
-  
   captureBtn.disabled = true;
 
-  // Capture from canvas WITH face mesh for display (original image)
   const originalImageWithMesh = canvasElement.toDataURL('image/png');
-  console.log('📷 [DEBUG] Captured image WITH face mesh for display');
   originalImage.src = originalImageWithMesh;
   
-  // Capture clean frame from video WITHOUT mesh for AI processing
   const captureCanvas = document.createElement('canvas');
   const captureCtx = captureCanvas.getContext('2d')!;
   captureCanvas.width = webcamElement.videoWidth;
@@ -902,780 +769,275 @@ async function capturePhoto() {
   captureCtx.drawImage(webcamElement, 0, 0, captureCanvas.width, captureCanvas.height);
   
   const cleanImageDataUrl = captureCanvas.toDataURL('image/png');
-  console.log('📷 [DEBUG] Captured CLEAN image for AI processing (no overlay). Data URL length:', cleanImageDataUrl.length);
-  console.log('📷 [DEBUG] Original display shows face mesh, AI gets clean image');
 
-  // Show results section
   webcamSection.style.display = 'none';
   resultsSection.style.display = 'block';
   processingIndicator.style.display = 'flex';
   straightenedImage.style.display = 'none';
   
-  // Keep step 1 active during processing
   updateProgressSteps(1);
-  
-  // Smooth scroll to top
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  console.log('⏳ [DEBUG] Starting analysis simulation...');
-  // Simulate analysis
   await simulateAnalysis();
 
-  console.log('🤖 [DEBUG] Starting AI generation and dental analysis in parallel...');
-  console.log('🤖 [DEBUG] Passing CLEAN image data to generateStraightenedImage (no mesh)');
-  
-  // Run AI image generation AND dental analysis in parallel for faster results
   const analysisPromises: Promise<void>[] = [
     generateStraightenedImage(cleanImageDataUrl, thisGenerationId)
   ];
   
-  // Add dental analysis if we have landmarks
   if (currentLandmarks) {
-    console.log('✅ [DEBUG] Landmarks available, adding dental analysis to parallel queue');
-    console.log('📊 [DEBUG] Will call performDentalAnalysis with:', {
-      hasCleanImage: !!cleanImageDataUrl,
-      hasOriginalImage: !!originalImageWithMesh,
-      landmarksCount: currentLandmarks.length
-    });
-    
     analysisPromises.push(
       performDentalAnalysis(cleanImageDataUrl, originalImageWithMesh).catch(error => {
         console.error('❌ [DEBUG] Dental analysis failed:', error);
-        console.error('Stack trace:', error);
-        // Don't block the UI - just log the error
       })
     );
-  } else {
-    console.warn('⚠️ [DEBUG] No landmarks available for dental analysis. Treatment plan will not be shown.');
   }
   
-  // Wait for all parallel operations to complete
   await Promise.all(analysisPromises);
-  console.log('✅ [DEBUG] All parallel operations completed');
-
   processingIndicator.style.display = 'none';
   straightenedImage.style.display = 'block';
   downloadBtn.style.display = 'inline-block';
-  
   isProcessing = false;
-  console.log('✨ [DEBUG] Capture process complete!');
-  console.log('🔍 [DEBUG] Final check - originalImage.src length (with mesh):', originalImage.src.length);
-  console.log('🔍 [DEBUG] Final check - straightenedImage.src length:', straightenedImage.src.length);
-  console.log('🔍 [DEBUG] Original shows face mesh, result shows clean AI-straightened teeth');
 }
 
 // Generate straightened image with Beame logo using Gemini AI
 async function generateStraightenedImage(originalDataUrl: string, generationId: number): Promise<void> {
-  console.log(`🚀 [DEBUG] Starting generateStraightenedImage function (ID: ${generationId})`);
-  
-  // Check if fallback mode is enabled
   if (USE_FALLBACK_MODE) {
-    console.log('💰 [FALLBACK] Fallback mode enabled - skipping AI to save credits');
     await new Promise(resolve => setTimeout(resolve, 1000));
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = img.width; canvas.height = img.height;
       const ctx = canvas.getContext('2d')!;
       ctx.drawImage(img, 0, 0);
-      ctx.font = 'bold 40px Arial';
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
-      ctx.textAlign = 'center';
-      ctx.fillText('FALLBACK MODE', canvas.width / 2, 50);
-      ctx.font = '20px Arial';
-      ctx.fillText('(AI Disabled - Testing Only)', canvas.width / 2, 85);
+      ctx.font = 'bold 40px Arial'; ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+      ctx.textAlign = 'center'; ctx.fillText('FALLBACK MODE', canvas.width / 2, 50);
       straightenedImage.src = canvas.toDataURL('image/png');
     };
     img.src = originalDataUrl;
     return;
   }
   
-  // ORIGINAL CODE BELOW (ENABLED)
   try {
-    // Check if API key is configured
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    console.log('🔑 [DEBUG] API Key status:', apiKey ? `Configured (${apiKey.substring(0, 10)}...)` : 'NOT CONFIGURED');
-    
     if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-      console.warn('⚠️ [DEBUG] Gemini API key not configured. Using fallback method.');
-      if (generationId === currentGenerationId) {
-        await _generateStraightenedImageOld(originalDataUrl);
-      } else {
-        console.log(`🚫 [DEBUG] Generation ${generationId} cancelled (current: ${currentGenerationId})`);
-      }
+      if (generationId === currentGenerationId) await _generateStraightenedImageOld(originalDataUrl);
       return;
     }
 
-    // Convert data URL to base64 (remove the data:image/png;base64, prefix)
     const base64Data = originalDataUrl.split(',')[1];
-    console.log('📸 [DEBUG] Image data prepared. Base64 length:', base64Data.length);
-    
-    // Array of models to try in order
     const modelsToTry = [
-      { name: 'gemini-2.5-flash-image', description: 'Image generation specialist (Nano Banana)' },
-      { name: 'gemini-2.0-flash-exp', description: 'Experimental with image generation' },
-      { name: 'imagen-3.0-generate-001', description: 'Imagen 3.0 direct' }
+      { name: 'gemini-2.5-flash-image', description: 'Nano Banana' },
+      { name: 'gemini-2.0-flash-exp', description: 'Experimental' }
     ];
     
-      // Create the prompt for teeth straightening
-      const prompt = `MANDATORY TEETH STRAIGHTENING - YOU MUST MAKE SIGNIFICANT VISIBLE CHANGES
+    const prompt = `MANDATORY TEETH STRAIGHTENING - YOU MUST MAKE SIGNIFICANT VISIBLE CHANGES...`;
 
-YOUR TASK: Transform the teeth in this image to be perfectly straight, aligned, and symmetric. This is a dental orthodontic simulation showing the result AFTER braces treatment.
-
-TEETH MODIFICATIONS REQUIRED (BE AGGRESSIVE):
-1. Straighten ALL visible teeth - make them perfectly vertical and aligned
-2. Rotate any angled/tilted teeth to face directly forward
-3. Close gaps between teeth completely
-4. Align teeth into a perfect smooth arch (both upper and lower)
-5. Make all teeth the same height and uniformly spaced
-6. Correct overbite/underbite - align upper and lower teeth properly
-7. Fix crooked teeth at ANY angle (front view, side view, any perspective)
-8. Ensure teeth form a perfect Hollywood smile shape
-9. Make the teeth alignment dramatically better than the original
-10. Apply orthodontic corrections aggressively - this should look like AFTER years of braces
-
-CRITICAL - PRESERVE NATURAL APPEARANCE:
-✓ Keep EXACT original tooth COLOR - no whitening, keep yellow/cream tones, stains, and natural discoloration
-✓ Keep tooth surface texture - natural enamel with imperfections, NOT porcelain veneers
-✓ Keep ALL skin texture - visible pores, wrinkles, fine lines, blemishes, freckles, moles
-✓ Keep skin tone and complexion EXACTLY as original - no smoothing or beauty filters
-✓ Keep facial asymmetry and natural imperfections
-✓ Keep original lighting, shadows, and highlights unchanged
-✓ Preserve any skin conditions, acne, scars, or texture
-
-DO NOT MODIFY (CRITICAL):
-❌ NO teeth whitening - teeth color must stay EXACTLY the same
-❌ NO teeth bleaching - keep natural yellow/cream tones
-❌ NO skin smoothing or blur
-❌ NO beauty filters or enhancements
-❌ NO blemish removal
-❌ NO wrinkle reduction
-❌ NO pore reduction
-❌ NO skin tone evening
-❌ NO lighting enhancement
-❌ Face shape, structure, proportions must be identical
-❌ Facial features (eyes, nose, ears, chin, forehead) untouched
-❌ Lips shape and size unchanged (only teeth inside should change)
-❌ Hair, clothing, background unchanged
-❌ Person's identity and appearance unchanged
-❌ Facial expressions unchanged
-
-IMPORTANT FOR ALL ANGLES:
-- Works for front-facing, side profiles, 3/4 angles, any perspective
-- Straighten teeth regardless of camera angle or head position
-- Apply aggressive corrections even if teeth look slightly straight already
-- The result should be noticeably more perfect than the input
-
-CRITICAL: ONLY change teeth ALIGNMENT (position/straightness). Everything else including tooth COLOR and skin TEXTURE must remain 100% identical to the original. This is ORTHODONTIC correction, NOT cosmetic enhancement.`;
-
-    // Try each model in sequence
     for (let i = 0; i < modelsToTry.length; i++) {
-      // Check if this generation has been cancelled
-      if (generationId !== currentGenerationId) {
-        console.log(`🚫 [DEBUG] Generation ${generationId} cancelled before model ${i + 1} (current: ${currentGenerationId})`);
-        return;
-      }
-      
+      if (generationId !== currentGenerationId) return;
       const modelInfo = modelsToTry[i];
-      console.log(`🤖 [DEBUG] Attempt ${i + 1}/${modelsToTry.length}: Trying model "${modelInfo.name}" (${modelInfo.description})`);
-      
       try {
         const model = _genAI.getGenerativeModel({ model: modelInfo.name });
-        
-        console.log('📝 [DEBUG] Sending request to Gemini API...');
-        console.log('⏳ [DEBUG] This may take 10-30 seconds...');
-
-        // Generate content with image
         const result = await model.generateContent([
           prompt,
-          {
-            inlineData: {
-              mimeType: 'image/png',
-              data: base64Data
-            }
-          }
+          { inlineData: { mimeType: 'image/png', data: base64Data } }
         ]);
 
-        // Check again after async operation
-        if (generationId !== currentGenerationId) {
-          console.log(`🚫 [DEBUG] Generation ${generationId} cancelled after API call (current: ${currentGenerationId})`);
-          return;
-        }
-
-        console.log(`✅ [DEBUG] Received response from ${modelInfo.name}`);
+        if (generationId !== currentGenerationId) return;
         const response = await result.response;
-        console.log('📦 [DEBUG] Response object:', response);
-        console.log('📊 [DEBUG] Response candidates:', response.candidates);
-        
-        // Check if response contains image data
-        let imageGenerated = false;
         const parts = response.candidates?.[0]?.content?.parts || [];
-        console.log('🔍 [DEBUG] Number of parts in response:', parts.length);
         
-        for (let j = 0; j < parts.length; j++) {
-          const part = parts[j];
-          console.log(`🔍 [DEBUG] Part ${j}:`, {
-            hasInlineData: !!part.inlineData,
-            hasText: !!part.text,
-            keys: Object.keys(part)
-          });
-          
+        for (const part of parts) {
           if (part.inlineData) {
-            console.log('🎨 [DEBUG] Found image data in response!');
-            // Convert the generated image to displayable format
-            const generatedImageData = part.inlineData.data;
-            const mimeType = part.inlineData.mimeType || 'image/png';
-            
-            console.log('🖼️ [DEBUG] Generated image details:', {
-              mimeType,
-              dataLength: generatedImageData.length
-            });
-            
-            // Check if the generated image is different from the original
-            const originalLength = base64Data.length;
-            const generatedLength = generatedImageData.length;
-            const sizeDifference = Math.abs(generatedLength - originalLength);
-            const percentDifference = (sizeDifference / originalLength) * 100;
-            
-            console.log('🔍 [DEBUG] Image comparison:', {
-              originalSize: originalLength,
-              generatedSize: generatedLength,
-              difference: sizeDifference,
-              percentDifference: `${percentDifference.toFixed(2)}%`,
-              likelyModified: percentDifference > 1
-            });
-            
-            if (percentDifference < 1) {
-              console.warn('⚠️ [DEBUG] WARNING: Generated image size is very similar to original. AI may not have edited the image significantly.');
-            }
-            
-            // Create data URL from generated image
-            const generatedDataUrl = `data:${mimeType};base64,${generatedImageData}`;
-            
-            console.log('🔍 [DEBUG] Data URL comparison:');
-            console.log('  Original first 100 chars:', originalDataUrl.substring(0, 100));
-            console.log('  Generated first 100 chars:', generatedDataUrl.substring(0, 100));
-            console.log('  Are they identical?', originalDataUrl === generatedDataUrl);
-            
-            console.log('🏷️ [DEBUG] Adding Beame branding...');
-            // Add Beame branding to the generated image
-            const brandedImage = await addBeameBranding(generatedDataUrl);
-            
-            // Final check before setting image
-            if (generationId !== currentGenerationId) {
-              console.log(`🚫 [DEBUG] Generation ${generationId} cancelled before displaying (current: ${currentGenerationId})`);
-              return;
-            }
-            
-            console.log('🎯 [DEBUG] Setting straightenedImage.src to branded AI image');
-            console.log('  Branded image length:', brandedImage.length);
+            const brandedImage = await addBeameBranding(`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`);
+            if (generationId !== currentGenerationId) return;
             straightenedImage.src = brandedImage;
-            imageGenerated = true;
-            console.log(`✨ [DEBUG] Successfully generated image using ${modelInfo.name}!`);
-            return; // Success! Exit the function
-          } else if (part.text) {
-            console.log('💬 [DEBUG] Text response:', part.text.substring(0, 200));
+            return;
           }
         }
-        
-        if (!imageGenerated) {
-          console.warn(`⚠️ [DEBUG] ${modelInfo.name} did not generate an image. Trying next model...`);
-          // Continue to next model
-        }
-        
       } catch (modelError) {
-        console.warn(`⚠️ [DEBUG] ${modelInfo.name} failed:`, modelError instanceof Error ? modelError.message : 'Unknown error');
-        
-        // Check if this is a quota error
-        if (modelError instanceof Error && modelError.message.includes('429')) {
-          console.log(`⏭️ [DEBUG] Quota exceeded for ${modelInfo.name}. Trying next model...`);
-        } else if (modelError instanceof Error && modelError.message.includes('404')) {
-          console.log(`⏭️ [DEBUG] ${modelInfo.name} not found. Trying next model...`);
-        } else {
-          console.log(`⏭️ [DEBUG] ${modelInfo.name} error. Trying next model...`);
-        }
-        
-        // Continue to next model if this isn't the last one
-        if (i < modelsToTry.length - 1) {
-          continue;
-        }
+        console.warn(`⚠️ [DEBUG] ${modelInfo.name} failed`, modelError);
       }
     }
-    
-    // If we get here, all models failed
-    console.warn('⚠️ [DEBUG] All Gemini models failed or did not generate images. Using fallback method.');
-    if (generationId === currentGenerationId) {
-      await _generateStraightenedImageOld(originalDataUrl);
-    } else {
-      console.log(`🚫 [DEBUG] Generation ${generationId} cancelled at fallback (current: ${currentGenerationId})`);
-    }
-    
+    if (generationId === currentGenerationId) await _generateStraightenedImageOld(originalDataUrl);
   } catch (error) {
-    console.error('❌ [DEBUG] Unexpected error in generateStraightenedImage:', error);
-    console.error('🔍 [DEBUG] Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    // Fallback to old method if API fails
-    console.log('🔄 [DEBUG] Falling back to old method...');
-    if (generationId === currentGenerationId) {
-      await _generateStraightenedImageOld(originalDataUrl);
-    } else {
-      console.log(`🚫 [DEBUG] Generation ${generationId} cancelled at error fallback (current: ${currentGenerationId})`);
-    }
+    if (generationId === currentGenerationId) await _generateStraightenedImageOld(originalDataUrl);
   }
 }
 
 // Add Beame branding to generated image
 async function addBeameBranding(imageDataUrl: string): Promise<string> {
-  console.log('🏷️ [DEBUG] addBeameBranding started');
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
-  
-  // Load the AI-generated image
   const img = new Image();
-  await new Promise((resolve) => {
-    img.onload = resolve;
-    img.src = imageDataUrl;
-  });
-
-  console.log('🖼️ [DEBUG] AI image loaded. Dimensions:', img.width, 'x', img.height);
-  canvas.width = img.width;
-  canvas.height = img.height;
-  
-  // Draw the AI-generated image
+  await new Promise((resolve) => { img.onload = resolve; img.src = imageDataUrl; });
+  canvas.width = img.width; canvas.height = img.height;
   ctx.drawImage(img, 0, 0);
-
-  // Add Beame logo
   const logoSize = Math.min(canvas.width, canvas.height) * 0.1;
   ctx.font = `bold ${logoSize}px Arial`;
-  
-  const padding = 20;
-  
-  // Add a subtle rectangle behind the logo
   ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
   const textMetrics = ctx.measureText('BEAME');
-  ctx.fillRect(
-    canvas.width - textMetrics.width - padding - 10,
-    canvas.height - logoSize - padding - 5,
-    textMetrics.width + 20,
-    logoSize + 10
-  );
-  
-  // Draw the logo text
+  ctx.fillRect(canvas.width - textMetrics.width - 30, canvas.height - logoSize - 25, textMetrics.width + 20, logoSize + 10);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText('BEAME', canvas.width - padding, canvas.height - padding);
-
-  console.log('✅ [DEBUG] Beame branding added successfully');
+  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+  ctx.fillText('BEAME', canvas.width - 20, canvas.height - 20);
   return canvas.toDataURL('image/png');
 }
 
-// OLD CODE: Original canvas-based image generation (kept as fallback)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function _generateStraightenedImageOld(originalDataUrl: string): Promise<void> { // Disabled for fallback mode
-  console.log('🔄 [DEBUG] Using fallback canvas-based image generation (old method)');
+// Fallback method
+async function _generateStraightenedImageOld(originalDataUrl: string): Promise<void> {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
-  
-  // Load original image
   const img = new Image();
-  await new Promise((resolve) => {
-    img.onload = resolve;
-    img.src = originalDataUrl;
-  });
-
-  console.log('📐 [DEBUG] Original image dimensions:', img.width, 'x', img.height);
-  canvas.width = img.width;
-  canvas.height = img.height;
-  
-  // Draw original image (in production, this would be the AI-processed result)
+  await new Promise((resolve) => { img.onload = resolve; img.src = originalDataUrl; });
+  canvas.width = img.width; canvas.height = img.height;
   ctx.drawImage(img, 0, 0);
-
-  // Add some visual enhancement (brightness/contrast to simulate "straightening")
-  ctx.globalAlpha = 0.1;
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.globalAlpha = 0.1; ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.globalAlpha = 1.0;
-
-  // Add Beame logo (using text as placeholder for now)
-  const logoSize = Math.min(canvas.width, canvas.height) * 0.1;
-  ctx.font = `bold ${logoSize}px Arial`;
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'bottom';
-  
-  const padding = 20;
-  ctx.fillText('BEAME', canvas.width - padding, canvas.height - padding);
-  
-  // Add a subtle rectangle behind the logo
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-  const textMetrics = ctx.measureText('BEAME');
-  ctx.fillRect(
-    canvas.width - textMetrics.width - padding - 10,
-    canvas.height - logoSize - padding - 5,
-    textMetrics.width + 20,
-    logoSize + 10
-  );
-  
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-  ctx.fillText('BEAME', canvas.width - padding, canvas.height - padding);
-
-  // Set result image
   straightenedImage.src = canvas.toDataURL('image/png');
-  console.log('✅ [DEBUG] Fallback method completed successfully');
 }
 
-// Classify dental case using Gemini AI (returns one of: MILD, MODERATE, COMPLEX, URGENT)
+// AI Classify
 async function classifyDentalCase(imageDataUrl: string): Promise<'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT'> {
-  console.log('🤖 [CLASSIFY] Starting AI case classification...');
-  
-  // Check if API key is configured
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    console.warn('⚠️ [CLASSIFY] Gemini API key not configured. Using fallback classification.');
-    // Fallback: return MODERATE as a safe default
-    return 'MODERATE';
-  }
-
+  if (!apiKey || apiKey === 'your_gemini_api_key_here') return 'MODERATE';
   try {
     const base64Data = imageDataUrl.split(',')[1];
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
-    const prompt = `You are a dental AI assistant. Analyze this photo of teeth and classify the case into EXACTLY ONE of these 4 categories:
-
-**MILD**: Minor crowding, spacing, or rotation. Minimal bite issues. Good aligner candidate.
-**MODERATE**: Moderate crowding/rotation/spacing. May show some bite concerns. Needs orthodontic plan.
-**COMPLEX**: Severe crowding, significant bite problems (overbite/underbite/crossbite), or advanced misalignment. May need braces or complex treatment.
-**URGENT**: Signs of infection, trauma, severe swelling, bleeding, broken teeth, or other urgent dental concerns requiring immediate professional care.
-
-CRITICAL INSTRUCTIONS:
-- Respond with ONLY ONE WORD: either "MILD" or "MODERATE" or "COMPLEX" or "URGENT"
-- Do NOT add any explanation, punctuation, or extra text
-- If unsure between two categories, choose the MORE CONSERVATIVE (higher severity) option
-
-Your response:`;
-
-    console.log('📤 [CLASSIFY] Sending image to Gemini...');
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          mimeType: 'image/png',
-          data: base64Data
-        }
-      }
-    ]);
-
-    const response = await result.response;
-    const text = response.text().trim().toUpperCase();
-    
-    console.log('📥 [CLASSIFY] Raw Gemini response:', text);
-
-    // Extract the classification from response
-    if (text.includes('URGENT')) {
-      console.log('✅ [CLASSIFY] Classification: URGENT');
-      return 'URGENT';
-    } else if (text.includes('COMPLEX')) {
-      console.log('✅ [CLASSIFY] Classification: COMPLEX');
-      return 'COMPLEX';
-    } else if (text.includes('MODERATE')) {
-      console.log('✅ [CLASSIFY] Classification: MODERATE');
-      return 'MODERATE';
-    } else if (text.includes('MILD')) {
-      console.log('✅ [CLASSIFY] Classification: MILD');
-      return 'MILD';
-    } else {
-      console.warn('⚠️ [CLASSIFY] Could not parse classification from response. Defaulting to MODERATE.');
-      return 'MODERATE';
-    }
-  } catch (error) {
-    console.error('❌ [CLASSIFY] Gemini classification failed:', error);
-    console.log('🔄 [CLASSIFY] Falling back to MODERATE classification');
-    return 'MODERATE';
-  }
+    const prompt = `Classify this case into MILD, MODERATE, COMPLEX, or URGENT... Respond with ONLY ONE WORD.`;
+    const result = await model.generateContent([prompt, { inlineData: { mimeType: 'image/png', data: base64Data } }]);
+    const text = (await result.response).text().trim().toUpperCase();
+    if (text.includes('URGENT')) return 'URGENT';
+    if (text.includes('COMPLEX')) return 'COMPLEX';
+    if (text.includes('MODERATE')) return 'MODERATE';
+    return 'MILD';
+  } catch (error) { return 'MODERATE'; }
 }
 
-// Display AI case classification in UI
 function displayCaseClassification(classification: 'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT'): void {
-  console.log('🎨 [UI] Displaying case classification:', classification);
-  
   const assessmentSection = document.getElementById('aiAssessmentSection');
   const chip = document.getElementById('assessmentCaseChip');
   const cards = document.querySelectorAll('.case-card');
   const targetCard = document.getElementById(`caseCard-${classification}`);
-
-  if (!chip || !targetCard || !assessmentSection) {
-    console.error('❌ [UI] Could not find classification UI elements');
-    return;
-  }
-
-  // Show the AI Assessment section
+  if (!chip || !targetCard || !assessmentSection) return;
   assessmentSection.style.display = 'block';
-
-  // Update chip styling and text
-  chip.className = 'case-chip';
-  
-  const chipLabels = {
-    en: {
-      MILD: 'Mild Case',
-      MODERATE: 'Moderate Case',
-      COMPLEX: 'Complex Case',
-      URGENT: 'Urgent Case'
-    },
-    zh: {
-      MILD: '輕度個案',
-      MODERATE: '中度個案',
-      COMPLEX: '複雜個案',
-      URGENT: '緊急個案'
-    }
-  };
-
-  const label = chipLabels[currentLanguage as keyof typeof chipLabels][classification];
-  chip.textContent = label;
-  chip.setAttribute('data-en', chipLabels.en[classification]);
-  chip.setAttribute('data-zh', chipLabels.zh[classification]);
-
-  // Hide all cards
-  cards.forEach(card => card.classList.remove('active'));
-  
-  // Show the matching card
-  targetCard.classList.add('active');
-  
-  console.log('✅ [UI] Case classification displayed successfully');
+  chip.className = `case-chip ${classification.toLowerCase()}`;
+  const chipLabels = { en: { MILD: 'Mild Case', MODERATE: 'Moderate Case', COMPLEX: 'Complex Case', URGENT: 'Urgent Case' }, zh: { MILD: '輕度個案', MODERATE: '中度個案', COMPLEX: '複雜個案', URGENT: '緊急個案' } };
+  chip.textContent = chipLabels[currentLanguage as keyof typeof chipLabels][classification];
+  cards.forEach(card => (card as HTMLElement).style.display = 'none');
+  targetCard.style.display = 'block';
 }
 
-// Perform dental analysis and treatment planning
 async function performDentalAnalysis(cleanImageUrl: string, originalImageUrl: string): Promise<void> {
   if (!currentLandmarks) return;
-
   try {
     analysisStep.textContent = t('analyzingDental');
-    
     const dentalAnalysis: DentalAnalysis = analyzeDentalArches(currentLandmarks);
-    
-    // Run AI case classification in parallel with treatment plan generation
-    console.log('🔀 [DEBUG] Starting parallel: AI classification + treatment plan');
     const [caseClassification, treatmentPlan] = await Promise.all([
       classifyDentalCase(cleanImageUrl),
       Promise.resolve(generateTreatmentPlan(dentalAnalysis))
     ]);
-    
-    console.log('✅ [DEBUG] AI Classification result:', caseClassification);
-    
-    // Display the AI case classification
     displayCaseClassification(caseClassification);
-
     analysisStep.textContent = t('savingSession');
     const compressedOriginal = await compressImageDataUrl(originalImageUrl);
     const compressedPreview = await compressImageDataUrl(straightenedImage.src);
-
-    const sessionId = generateSessionId();
-    currentSession = {
-      id: sessionId,
-      timestamp: Date.now(),
-      originalImageUrl: compressedOriginal,
-      previewImageUrl: compressedPreview,
-      dentalAnalysis,
-      treatmentPlan,
-      status: treatmentPlan.eligibility === 'reject' ? 'rejected' : 'pending'
-    };
-
+    currentSession = { id: generateSessionId(), timestamp: Date.now(), originalImageUrl: compressedOriginal, previewImageUrl: compressedPreview, dentalAnalysis, treatmentPlan, status: 'pending' };
     saveCurrentSession(currentSession);
-    
     analysisStep.textContent = t('preparingPlan');
     displayTreatmentPlan(treatmentPlan);
-
     pendingDentalAnalysis = dentalAnalysis;
-    
     const tab3dBtn = document.getElementById('3dTabBtn') as HTMLButtonElement;
-    if (tab3dBtn) {
-      tab3dBtn.disabled = false;
-      tab3dBtn.classList.remove('disabled');
-    }
-    
+    if (tab3dBtn) { tab3dBtn.disabled = false; tab3dBtn.classList.remove('disabled'); }
     updateProgressSteps(2);
-  } catch (error) {
-    console.error('❌ Dental analysis failed:', error);
-    throw error;
-  }
+  } catch (error) { console.error('❌ Dental analysis failed:', error); throw error; }
 }
 
-// Update progress steps (simplified to 2 steps)
 function updateProgressSteps(currentStep: number): void {
   for (let i = 1; i <= 2; i++) {
     const step = document.getElementById(`step${i}`);
     if (step) {
       step.classList.remove('active', 'completed');
-      if (i < currentStep) {
-        step.classList.add('completed');
-      } else if (i === currentStep) {
-        step.classList.add('active');
-      }
+      if (i < currentStep) step.classList.add('completed');
+      else if (i === currentStep) step.classList.add('active');
     }
   }
 }
 
-// Determine case type from treatment plan
 function determineCaseType(plan: TreatmentPlan): 'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT' {
-  // Map old eligibility to new 4-tier model
   if (plan.eligibility === 'eligible') {
-    // Check complexity within eligible cases
     const complexityScore = (plan.treatmentLengthMonths || 0) + (plan.stageCount || 0);
     return complexityScore < 20 ? 'MILD' : 'MODERATE';
-  } else if (plan.eligibility === 'review') {
-    return 'MODERATE';
-  } else {
-    // reject -> COMPLEX (unless there are urgent signs like infection/trauma)
-    // For now, default to COMPLEX; expand this logic if you detect urgent symptoms
-    return 'COMPLEX';
   }
+  return plan.eligibility === 'review' ? 'MODERATE' : 'COMPLEX';
 }
 
-// Display treatment plan in UI (updated for 4-tier model)
 function displayTreatmentPlan(plan: TreatmentPlan): void {
   const planTabBtn = document.getElementById('planTabBtn') as HTMLButtonElement;
-  if (planTabBtn) {
-    planTabBtn.disabled = false;
-    planTabBtn.classList.remove('disabled');
-  }
-  
-  // Determine case type
+  if (planTabBtn) { planTabBtn.disabled = false; planTabBtn.classList.remove('disabled'); }
   const caseType = determineCaseType(plan);
-  
-  // Show AI Assessment section with the appropriate card
   const aiAssessmentSection = document.getElementById('aiAssessmentSection');
-  if (aiAssessmentSection) {
-    aiAssessmentSection.style.display = 'block';
-  }
-  
-  // Hide all case cards, then show the matching one
+  if (aiAssessmentSection) aiAssessmentSection.style.display = 'block';
   const allCaseCards = document.querySelectorAll('.case-card');
-  allCaseCards.forEach(card => {
-    (card as HTMLElement).style.display = 'none';
-  });
-  
+  allCaseCards.forEach(card => (card as HTMLElement).style.display = 'none');
   const activeCard = document.getElementById(`caseCard-${caseType}`);
-  if (activeCard) {
-    activeCard.style.display = 'block';
-  }
-  
-  // Update case chip and meta
-  const caseLabels: Record<string, string> = {
-    MILD: 'Mild Case',
-    MODERATE: 'Moderate Case',
-    COMPLEX: 'Complex Case',
-    URGENT: 'Urgent'
-  };
+  if (activeCard) activeCard.style.display = 'block';
   if (assessmentCaseChip) {
-    assessmentCaseChip.textContent = caseLabels[caseType] || caseType;
+    assessmentCaseChip.textContent = caseType;
     assessmentCaseChip.className = `case-chip ${caseType.toLowerCase()}`;
   }
-  if (assessmentMeta) {
-    assessmentMeta.textContent = `Based on photo analysis • ${new Date().toLocaleDateString()}`;
-  }
-  
-  // Still populate the detailed plan sections below
+  if (assessmentMeta) assessmentMeta.textContent = `Based on AI Analysis • ${new Date().toLocaleDateString()}`;
   eligibilityCard.style.display = 'block';
   treatmentDetails.style.display = 'grid';
-  
   eligibilityBadge.className = `badge ${plan.eligibility}`;
-  
-  const statusMessages = {
-    eligible: t('eligibleTitle'),
-    review: t('reviewTitle'),
-    reject: ''
-  };
-  
-  eligibilityStatus.textContent = statusMessages[plan.eligibility as keyof typeof statusMessages];
+  eligibilityStatus.textContent = t(plan.eligibility + 'Title');
   eligibilityMessage.textContent = plan.reasons[0] || t('defaultMessage');
-
   treatmentLength.textContent = `${plan.treatmentLengthMonths} ${t('months')}`;
   stageCount.textContent = `${plan.stageCount} ${t('aligners')}`;
   wearType.textContent = plan.wearType;
-
   correctionsList.innerHTML = '';
-  const correctionLabels: Record<string, Record<string, string>> = {
-    en: { crowdingCorrection: 'Crowding', rotationCorrection: 'Rotation', spacingCorrection: 'Spacing', midlineCorrection: 'Midline', biteCorrection: 'Bite' },
-    zh: { crowdingCorrection: '擁擠', rotationCorrection: '扭轉', spacingCorrection: '縫隙', midlineCorrection: '中線', biteCorrection: '咬合' }
-  };
-
   for (const [key, value] of Object.entries(plan.corrections)) {
     const tag = document.createElement('span');
     tag.className = `correction-tag ${value ? '' : 'disabled'}`;
-    tag.textContent = (correctionLabels[currentLanguage as keyof typeof correctionLabels] as any)[key] || key;
-    correctionsList.appendChild(tag);
+    tag.textContent = key; correctionsList.appendChild(tag);
   }
-
   treatmentReasons.innerHTML = '';
   plan.reasons.forEach(reason => {
-    const li = document.createElement('li');
-    li.textContent = reason;
-    treatmentReasons.appendChild(li);
+    const li = document.createElement('li'); li.textContent = reason; treatmentReasons.appendChild(li);
   });
 }
 
-// Helper to get eligibility card element
 const eligibilityCard = document.getElementById('eligibilityCard') as HTMLDivElement;
 
 // Start camera for 4-stage capture
 async function startStageCamera(): Promise<boolean> {
   try {
     console.log('📸 [DEBUG] Starting stage capture camera...');
-    
     const stream = await getCameraStream();
-    
     stageWebcam.muted = true;
     stageWebcam.setAttribute('playsinline', 'true');
     stageWebcam.srcObject = stream;
-    
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Stage camera timeout')), 10000);
-      stageWebcam.onloadedmetadata = () => {
-        clearTimeout(timeout);
-        stageWebcam.play().then(resolve).catch(reject);
-      };
+      stageWebcam.onloadedmetadata = () => { clearTimeout(timeout); stageWebcam.play().then(resolve).catch(reject); };
     });
 
-    // Initialize FaceMesh for stage capture
-    stageFaceMesh = new FaceMesh({
-      locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-      }
-    });
+    initializeFaceMesh();
 
-    stageFaceMesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-
-    stageFaceMesh.onResults(onStageFaceMeshResults);
-
-    // Use custom loop instead of MediaPipe Camera class
     const stageLoop = {
       active: true,
       stop: () => {
         stageLoop.active = false;
         if (stageWebcam.srcObject) {
-          const s = stageWebcam.srcObject as MediaStream;
-          s.getTracks().forEach(track => track.stop());
+          (stageWebcam.srcObject as MediaStream).getTracks().forEach(t => t.stop());
           stageWebcam.srcObject = null;
         }
       },
       start: async () => {
         const processFrame = async () => {
           if (!stageLoop.active) return;
-          if (stageFaceMesh && stageWebcam.readyState >= 2) {
-            try {
-              await stageFaceMesh.send({ image: stageWebcam });
-            } catch (err) {
-              console.warn('Stage FaceMesh processing error:', err);
-            }
+          if (faceMesh && stageWebcam.readyState >= 2) {
+            try { await faceMesh.send({ image: stageWebcam }); } 
+            catch (err) { console.warn('Stage processing error:', err); }
           }
           requestAnimationFrame(processFrame);
         };
@@ -1685,15 +1047,9 @@ async function startStageCamera(): Promise<boolean> {
 
     stageCamera = stageLoop as any;
     await (stageCamera as any).start();
-    console.log('✅ [DEBUG] Stage camera started successfully');
-    
     return true;
   } catch (error) {
-    console.error('❌ [DEBUG] Failed to start stage camera:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    alert(currentLanguage === 'en' 
-      ? `Failed to access stage camera: ${errorMessage}. Please ensure permissions are granted.` 
-      : `無法訪問拍攝攝像頭: ${errorMessage}。請確保已授予權限。`);
+    console.error('❌ [DEBUG] Stage camera error:', error);
     return false;
   }
 }
@@ -1701,538 +1057,180 @@ async function startStageCamera(): Promise<boolean> {
 // Handle FaceMesh results for stage capture
 function onStageFaceMeshResults(results: any) {
   const canvasCtx = stageOverlay.getContext('2d')!;
-  
-  // Use video dimensions for internal canvas resolution
   if (stageOverlay.width !== stageWebcam.videoWidth || stageOverlay.height !== stageWebcam.videoHeight) {
     stageOverlay.width = stageWebcam.videoWidth;
     stageOverlay.height = stageWebcam.videoHeight;
   }
-
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, stageOverlay.width, stageOverlay.height);
-  
-  // Draw the video frame first (mirroring is handled by CSS transform)
   canvasCtx.drawImage(results.image, 0, 0, stageOverlay.width, stageOverlay.height);
 
   const currentStage = CAPTURE_STAGES[activeStageIndex];
-
   if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-    stageLandmarks = results.multiFaceLandmarks[0];
+    const landmarks = results.multiFaceLandmarks[0];
+    stageLandmarks = landmarks;
+    stageReady = validateStageAlignment(currentStage.id, landmarks, stageOverlay.width, stageOverlay.height);
     
-    // Validate based on current stage
-    stageReady = stageLandmarks ? validateStageAlignment(currentStage.id, stageLandmarks, stageOverlay.width, stageOverlay.height) : false;
-    
-    // Update ready badge
     if (stageReady) {
       stageReadyBadge.classList.add('ready');
-      stageReadyBadge.classList.remove('not-ready');
-      stageReadyText.textContent = currentLanguage === 'en' ? '✓ Ready to Capture' : '✓ 準備拍攝';
+      stageReadyText.textContent = t('readyCapture');
       stageCaptureBtn.disabled = false;
     } else {
       stageReadyBadge.classList.remove('ready');
-      stageReadyBadge.classList.add('not-ready');
-      stageReadyText.textContent = currentLanguage === 'en' ? '⚠ Align with guides' : '⚠ 請對準引導線';
+      stageReadyText.textContent = currentLanguage === 'en' ? 'Align with markers' : '請對準標記';
       stageCaptureBtn.disabled = true;
     }
+    drawDentalOverlay(canvasCtx, landmarks, stageOverlay.width, stageOverlay.height, stageReady, currentStage.id);
   } else {
-    stageLandmarks = null;
-    stageReady = false;
+    stageLandmarks = null; stageReady = false;
     stageReadyBadge.classList.remove('ready');
-    stageReadyBadge.classList.add('not-ready');
-    stageReadyText.textContent = currentLanguage === 'en' ? '⚠ No face detected' : '⚠ 未檢測到面部';
+    stageReadyText.textContent = t('noFace');
     stageCaptureBtn.disabled = true;
   }
-
-  // Draw alignment guides (fixed)
-  drawStageGuides(canvasCtx, stageOverlay.width, stageOverlay.height, currentStage.id);
-
   canvasCtx.restore();
 }
 
-// Validate alignment for each stage
 function validateStageAlignment(stageId: CaptureStageId, landmarks: any[], width: number, height: number): boolean {
-  const mouthOpen = getMouthOpenDistance(landmarks);
+  const mouthOpenDist = getMouthOpenDistance(landmarks);
   const roll = getRollDegrees(landmarks);
-  const yawProxy = getYawProxy(landmarks);
+  const yaw = getYawProxy(landmarks);
   const { mouthCenterX, mouthCenterY, mouthWidth } = getMouthMetrics(landmarks, width, height);
   
-  // 1. Centering Check: Mouth should be near the guide center (lowered)
-  const centerX = width / 2;
-  const centerY = height * 0.6; // Matches the lowered guides
-  const horizontalOffset = Math.abs(mouthCenterX - centerX) / width;
-  const verticalOffset = Math.abs(mouthCenterY - centerY) / height;
-  
-  // More lenient centering: 15% horizontal, 20% vertical
-  const isCentered = horizontalOffset < 0.15 && verticalOffset < 0.20;
-  
-  // 2. Distance Check: Mouth width should be reasonable
-  const faceDistancePercent = mouthWidth / width;
-  // Lenient distance: 10% to 60% of screen
-  const isDistanceCorrect = faceDistancePercent > 0.10 && faceDistancePercent < 0.60;
-
-  // 3. Orientation Check: Face should be relatively level
-  const isLevel = Math.abs(roll) < 20; // Increased from 12 to 20
+  const isCentered = Math.abs(mouthCenterX - width/2)/width < 0.15 && Math.abs(mouthCenterY - height*0.6)/height < 0.2;
+  const isDistanceOk = mouthWidth/width > 0.1 && mouthWidth/width < 0.6;
+  const isLevel = Math.abs(roll) < 20;
 
   switch (stageId) {
-    case 'front_smile':
-      // Front smile: mouth closed, face straight
-      const isYawStraight = Math.abs(yawProxy) < 0.04; // Lenient
-      const isMouthStateCorrect = mouthOpen < 0.05; // Lenient
-      return isCentered && isDistanceCorrect && isLevel && isYawStraight && isMouthStateCorrect;
-      
+    case 'front_smile': return isCentered && isDistanceOk && isLevel && Math.abs(yaw) < 0.04 && mouthOpenDist < 0.05;
     case 'lower_front':
-    case 'upper_front':
-      // Lower/upper: mouth open wide, face straight
-      const isYawStraightOpen = Math.abs(yawProxy) < 0.05;
-      const isMouthOpenWide = mouthOpen > 0.035; // Lowered threshold
-      return isCentered && isDistanceCorrect && isLevel && isYawStraightOpen && isMouthOpenWide;
-      
-    case 'side_bite':
-      // Side bite: mouth closed, head turned
-      const isHeadTurned = Math.abs(yawProxy) > 0.03; // Lowered from 0.04
-      const isMouthClosedSide = mouthOpen < 0.05;
-      const isCenteredSide = horizontalOffset < 0.25 && verticalOffset < 0.25;
-      return isCenteredSide && isDistanceCorrect && isLevel && isHeadTurned && isMouthClosedSide;
-      
-    default:
-      return false;
+    case 'upper_front': return isCentered && isDistanceOk && isLevel && Math.abs(yaw) < 0.05 && mouthOpenDist > 0.035;
+    case 'side_bite': return isCentered && isDistanceOk && isLevel && Math.abs(yaw) > 0.03 && mouthOpenDist < 0.05;
+    default: return false;
   }
 }
 
-// Helper functions for validation
 function getMouthOpenDistance(landmarks: any[]): number {
-  const upperLip = landmarks[13];
-  const lowerLip = landmarks[14];
-  if (!upperLip || !lowerLip) return 0;
-  return Math.abs(lowerLip.y - upperLip.y);
+  return landmarks[13] && landmarks[14] ? Math.abs(landmarks[14].y - landmarks[13].y) : 0;
 }
-
 function getRollDegrees(landmarks: any[]): number {
-  const leftEye = landmarks[33];
-  const rightEye = landmarks[263];
-  if (!leftEye || !rightEye) return 0;
-  const dy = leftEye.y - rightEye.y;
-  const dx = leftEye.x - rightEye.x;
+  const dy = landmarks[33].y - landmarks[263].y;
+  const dx = landmarks[33].x - landmarks[263].x;
   return (Math.atan2(dy, dx) * 180) / Math.PI;
 }
-
 function getYawProxy(landmarks: any[]): number {
-  const leftCheek = landmarks[234];
-  const rightCheek = landmarks[454];
-  if (!leftCheek || !rightCheek) return 0;
-  return leftCheek.z - rightCheek.z;
+  return landmarks[234].z - landmarks[454].z;
 }
-
-// Draw alignment guides on overlay (FIXED guides)
-function drawStageGuides(ctx: CanvasRenderingContext2D, width: number, height: number, stageId: CaptureStageId) {
-  const centerX = width / 2;
-  const centerY = height * 0.6; // LOWERED CENTER
-  
-  ctx.save();
-  
-  // 1. Draw Face Silhouette (Subtle guide for overall head position)
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  // Simple head oval - also lowered
-  ctx.ellipse(centerX, centerY - height * 0.15, width * 0.25, height * 0.4, 0, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // 2. Draw Mouth Guide (Main target)
-  const guideWidth = width * 0.35;
-  const guideHeight = height * 0.25;
-
-  // Set style based on whether we are ready
-  const readyColor = 'rgba(0, 206, 124, 0.8)'; // Slightly transparent green
-  const waitingColor = 'rgba(255, 255, 255, 0.2)'; // Very subtle waiting
-  ctx.strokeStyle = stageReady ? readyColor : waitingColor;
-  ctx.lineWidth = 3; // Thinner lines
-  
-  if (stageReady) {
-    ctx.shadowColor = '#00ce7c';
-    ctx.shadowBlur = 10;
-    ctx.setLineDash([]);
-  } else {
-    ctx.setLineDash([5, 5]); // Shorter dashes
-  }
-
-  // Draw a more "dental" mouth guide (two arcs)
-  const mouthW = guideWidth * 0.6;
-  const mouthH = (stageId === 'front_smile' || stageId === 'side_bite') ? guideHeight * 0.3 : guideHeight * 0.7;
-  
-  ctx.beginPath();
-  // Upper lip arc
-  ctx.moveTo(centerX - mouthW/2, centerY);
-  ctx.quadraticCurveTo(centerX, centerY - mouthH/2, centerX + mouthW/2, centerY);
-  // Lower lip arc
-  ctx.quadraticCurveTo(centerX, centerY + mouthH/2, centerX - mouthW/2, centerY);
-  ctx.stroke();
-
-  // 3. Draw Corner "Bracket" Marks
-  ctx.setLineDash([]);
-  ctx.lineWidth = 2;
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = stageReady ? readyColor : 'rgba(255, 255, 255, 0.3)';
-  
-  const bracketSize = 30;
-  const pad = 20;
-  const bW = mouthW/2 + pad;
-  const bH = mouthH/2 + pad;
-
-  // Top Left
-  ctx.beginPath();
-  ctx.moveTo(centerX - bW, centerY - bH + bracketSize);
-  ctx.lineTo(centerX - bW, centerY - bH);
-  ctx.lineTo(centerX - bW + bracketSize, centerY - bH);
-  ctx.stroke();
-
-  // Top Right
-  ctx.beginPath();
-  ctx.moveTo(centerX + bW, centerY - bH + bracketSize);
-  ctx.lineTo(centerX + bW, centerY - bH);
-  ctx.lineTo(centerX + bW - bracketSize, centerY - bH);
-  ctx.stroke();
-
-  // Bottom Left
-  ctx.beginPath();
-  ctx.moveTo(centerX - bW, centerY + bH - bracketSize);
-  ctx.lineTo(centerX - bW, centerY + bH);
-  ctx.lineTo(centerX - bW + bracketSize, centerY + bH);
-  ctx.stroke();
-
-  // Bottom Right
-  ctx.beginPath();
-  ctx.moveTo(centerX + bW, centerY + bH - bracketSize);
-  ctx.lineTo(centerX + bW, centerY + bH);
-  ctx.lineTo(centerX + bW - bracketSize, centerY + bH);
-  ctx.stroke();
-
-  ctx.restore();
-}
-
 function getMouthMetrics(landmarks: any[], width: number, height: number) {
-  const upperLip = landmarks[13];
-  const lowerLip = landmarks[14];
-  const leftMouth = landmarks[61];
-  const rightMouth = landmarks[291];
-
-  const mouthCenterX = ((leftMouth?.x || 0.5) + (rightMouth?.x || 0.5)) / 2 * width;
-  const mouthCenterY = ((upperLip?.y || 0.5) + (lowerLip?.y || 0.5)) / 2 * height;
-  const mouthWidth = Math.abs(((rightMouth?.x || 0.55) - (leftMouth?.x || 0.45)) * width);
-  const mouthHeight = Math.abs(((lowerLip?.y || 0.52) - (upperLip?.y || 0.48)) * height);
-
-  return { mouthCenterX, mouthCenterY, mouthWidth, mouthHeight };
+  const centerX = ((landmarks[61]?.x || 0.5) + (landmarks[291]?.x || 0.5)) / 2 * width;
+  const centerY = ((landmarks[13]?.y || 0.5) + (landmarks[14]?.y || 0.5)) / 2 * height;
+  const w = Math.abs(((landmarks[291]?.x || 0.55) - (landmarks[61]?.x || 0.45)) * width);
+  return { mouthCenterX: centerX, mouthCenterY: centerY, mouthWidth: w };
 }
 
-// Initialize tab 3 (4-stage capture) when user clicks it
 async function initializeStageCapture(): Promise<void> {
-  console.log('📸 [DEBUG] Initializing 4-stage capture tab...');
-  
-  // Start camera for the stage capture if not already running
-  if (!stageCamera) {
-    await startStageCamera();
-  }
-  
-  // Update UI for first stage
+  if (!stageCamera) await startStageCamera();
   updateStageUI();
 }
 
-// Update stage UI (instructions, thumbnails, etc.)
 function updateStageUI() {
   const stage = CAPTURE_STAGES[activeStageIndex];
   if (stageStepEl) stageStepEl.textContent = `${activeStageIndex + 1} of 4`;
   if (stageTitleEl) stageTitleEl.textContent = stage.title;
   if (stageInstructionEl) stageInstructionEl.textContent = stage.instruction;
-  
-  // Reset ready state when switching stages
-  stageReady = false;
-  stageCaptureBtn.disabled = true;
+  stageReady = false; stageCaptureBtn.disabled = true;
   stageReadyBadge.classList.remove('ready');
-  stageReadyBadge.classList.add('not-ready');
-  stageReadyText.textContent = currentLanguage === 'en' ? '⚠ Align with guides' : '⚠ 請對準引導線';
-  
-  // Update thumbnail active states
   thumbBtns.forEach((btn, idx) => {
-    if (btn) {
-      btn.classList.toggle('active', idx === activeStageIndex);
-      btn.classList.toggle('captured', stageCaptures[idx] !== null);
-    }
+    if (btn) { btn.classList.toggle('active', idx === activeStageIndex); btn.classList.toggle('captured', stageCaptures[idx] !== null); }
   });
-
-  // Toggle buttons based on whether all stages are captured
-  const allCaptured = stageCaptures.every(img => img !== null);
-  if (stageCompleteBtn) {
-    stageCompleteBtn.style.display = allCaptured ? 'block' : 'none';
-  }
+  if (stageCompleteBtn) stageCompleteBtn.style.display = stageCaptures.every(img => img !== null) ? 'block' : 'none';
 }
 
-// Capture button handler
 if (stageCaptureBtn) {
   stageCaptureBtn.addEventListener('click', () => {
-    if (!stageReady) {
-      console.log('⚠️ [DEBUG] Stage not ready for capture');
-      return;
-    }
-    
-    console.log(`📸 [DEBUG] Capturing photo for stage ${activeStageIndex + 1}`);
-    
-    // Capture photo
-    const captureCanvas = document.createElement('canvas');
-    captureCanvas.width = stageWebcam.videoWidth;
-    captureCanvas.height = stageWebcam.videoHeight;
-    const ctx = captureCanvas.getContext('2d')!;
-    ctx.drawImage(stageWebcam, 0, 0);
-    
-    const dataUrl = captureCanvas.toDataURL('image/png');
+    if (!stageReady) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = stageWebcam.videoWidth; canvas.height = stageWebcam.videoHeight;
+    canvas.getContext('2d')!.drawImage(stageWebcam, 0, 0);
+    const dataUrl = canvas.toDataURL('image/png');
     stageCaptures[activeStageIndex] = dataUrl;
-    
-    // Update thumbnail
-    if (thumbImgs[activeStageIndex]) {
-      thumbImgs[activeStageIndex].src = dataUrl;
-      thumbImgs[activeStageIndex].style.display = 'block';
-    }
-    
-    // Move to next stage
-    if (activeStageIndex < 3) {
-      activeStageIndex++;
-      updateStageUI();
-    } else {
-      // All 4 captured
-      console.log('✅ All 4 stages captured!');
-      updateStageUI();
-    }
+    if (thumbImgs[activeStageIndex]) { thumbImgs[activeStageIndex].src = dataUrl; thumbImgs[activeStageIndex].style.display = 'block'; }
+    if (activeStageIndex < 3) { activeStageIndex++; updateStageUI(); } else { updateStageUI(); }
   });
 }
 
-// Retake button handler
 if (stageRetakeBtn) {
   stageRetakeBtn.addEventListener('click', () => {
-    console.log(`🔄 [DEBUG] Retaking photo for stage ${activeStageIndex + 1}`);
     stageCaptures[activeStageIndex] = null;
-    if (thumbImgs[activeStageIndex]) {
-      thumbImgs[activeStageIndex].src = '';
-      thumbImgs[activeStageIndex].style.display = 'none';
-    }
+    if (thumbImgs[activeStageIndex]) { thumbImgs[activeStageIndex].src = ''; thumbImgs[activeStageIndex].style.display = 'none'; }
     updateStageUI();
   });
 }
 
-// Done button handler
 if (stageCompleteBtn) {
   stageCompleteBtn.addEventListener('click', () => {
-    alert(currentLanguage === 'en' ? 'Photos submitted! Our clinicians will review them.' : '照片已提交！我們的臨床醫生將進行審核。');
-    // Switch back to treatment plan tab
-    const switchTabFn = (window as any).switchTab;
-    if (switchTabFn) switchTabFn('plan');
+    alert(currentLanguage === 'en' ? 'Photos submitted!' : '照片已提交！');
+    const switchTabFn = (window as any).switchTab; if (switchTabFn) switchTabFn('plan');
   });
 }
 
-// Thumbnail click handlers to switch stages
 thumbBtns.forEach((btn, idx) => {
-  if (btn) {
-    btn.addEventListener('click', () => {
-      console.log(`🎯 [DEBUG] Switching to stage ${idx + 1}`);
-      activeStageIndex = idx;
-      updateStageUI();
-    });
-  }
+  if (btn) btn.addEventListener('click', () => { activeStageIndex = idx; updateStageUI(); });
 });
 
-// Download result
 function downloadResult() {
-  const link = document.createElement('a');
-  link.download = 'beame-straightened-teeth.png';
-  link.href = straightenedImage.src;
-  link.click();
+  const link = document.createElement('a'); link.download = 'beame-result.png';
+  link.href = straightenedImage.src; link.click();
 }
 
-// Retry - go back to camera
 async function retry() {
-  // Cleanup stage capture
-  if (stageCamera) {
-    (stageCamera as any).stop();
-    stageCamera = null;
-  }
-  if (stageFaceMesh) {
-    stageFaceMesh = null;
-  }
-  
-  pendingDentalAnalysis = null;
-  stageCaptures = [null, null, null, null];
-  activeStageIndex = 0;
-  
-  // Clear stage thumbnails
-  thumbImgs.forEach(img => {
-    if (img) {
-      img.src = '';
-      img.style.display = 'none';
-    }
-  });
+  if (stageCamera) (stageCamera as any).stop(); stageCamera = null;
+  pendingDentalAnalysis = null; stageCaptures = [null, null, null, null]; activeStageIndex = 0;
+  thumbImgs.forEach(img => { if (img) { img.src = ''; img.style.display = 'none'; } });
   if (stageCompleteBtn) stageCompleteBtn.style.display = 'none';
-
-  // Hide main results section
   resultsSection.style.display = 'none';
-  
-  // Hide AI Assessment section
   const assessmentSection = document.getElementById('aiAssessmentSection');
-  if (assessmentSection) {
-    assessmentSection.style.display = 'none';
-  }
-  
-  // Disable tab buttons
+  if (assessmentSection) assessmentSection.style.display = 'none';
   const planTabBtn = document.getElementById('planTabBtn') as HTMLButtonElement;
   const tab3dBtn = document.getElementById('3dTabBtn') as HTMLButtonElement;
-  if (planTabBtn) {
-    planTabBtn.disabled = true;
-    planTabBtn.classList.add('disabled');
-  }
-  if (tab3dBtn) {
-    tab3dBtn.disabled = true;
-    tab3dBtn.classList.add('disabled');
-  }
-  
-  // Reset to first tab
-  const switchTabFn = (window as any).switchTab;
-  if (switchTabFn) switchTabFn('preview');
-  
-  // Show webcam
-  webcamSection.style.display = 'block';
-  captureBtn.disabled = true; // Will be enabled when mouth opens
-  downloadBtn.style.display = 'none';
-  isProcessing = false;
-  
-  // Reset state
-  currentLandmarks = null;
-  currentSession = null;
-  
-  // Reset progress steps
+  if (planTabBtn) { planTabBtn.disabled = true; planTabBtn.classList.add('disabled'); }
+  if (tab3dBtn) { tab3dBtn.disabled = true; tab3dBtn.classList.add('disabled'); }
+  const switchTabFn = (window as any).switchTab; if (switchTabFn) switchTabFn('preview');
+  webcamSection.style.display = 'block'; captureBtn.disabled = true;
+  downloadBtn.style.display = 'none'; isProcessing = false;
+  currentLandmarks = null; currentSession = null;
   updateProgressSteps(1);
-  
-  // Set initial alignment status color
-  if (analysisStatus) {
-    analysisStatus.parentElement?.classList.remove('ready');
-    analysisStatus.parentElement?.classList.add('not-ready');
-    analysisStatus.textContent = t('openMouthWider');
-  }
-  
-  // Scroll to top
+  if (analysisStatus) { analysisStatus.parentElement?.classList.remove('ready'); analysisStatus.parentElement?.classList.add('not-ready'); analysisStatus.textContent = t('openMouthWider'); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  // Restart camera if it's not running
-  if (!camera) {
-    console.log('📹 [DEBUG] Restarting camera...');
-    await startCamera();
-  }
+  if (!camera) await startCamera();
 }
 
-// Event Listeners
 captureBtn.addEventListener('click', capturePhoto);
 downloadBtn.addEventListener('click', downloadResult);
 retryBtn.addEventListener('click', retry);
 
-// Initialize on page load
 async function initializeApp() {
   console.log('🚀 [DEBUG] Beame Teeth Straightener initialized');
-  console.log('🔧 [DEBUG] Environment check:');
-  console.log('  - Gemini API Key:', import.meta.env.VITE_GEMINI_API_KEY ? 'Configured ✓' : 'NOT configured ✗');
-  console.log('');
-  console.log('🦷 [TOOTH DETECTION]:');
   if (ENABLE_TOOTH_DETECTION) {
-    console.log('  - Status: ✅ ENABLED');
-    console.log('  - Mode: LOCAL ONNX ⚡ (Browser-based, like SmileSet!)');
-    console.log('  - Model Path:', ONNX_MODEL_PATH);
-    console.log('  - Update Rate: ~30 FPS (33ms) - MediaPipe speed!');
-    console.log('  - Runs in browser: ✅ Yes (WebGL/WebAssembly)');
-    console.log('  - API calls: ❌ None (100% local)');
-  } else {
-    console.log('  - Status: 🚫 DISABLED (model too buggy, causes lag)');
-    console.log('  - Reason: Current model is undertrained and needs 50+ epochs');
-    console.log('  - To enable: Set ENABLE_TOOTH_DETECTION = true in main.ts');
+    try { await loadONNXModel(ONNX_MODEL_PATH); console.log('✅ Tooth detection ready!'); } catch (error) { console.error('❌ Failed to load model', error); }
   }
-  console.log('');
-  
-  if (ENABLE_TOOTH_DETECTION) {
-    console.log('📥 Loading tooth detection model...');
-    
-    console.log('  - Mode:', import.meta.env.MODE);
-    console.log('  - Base URL:', import.meta.env.BASE_URL);
-
-    // Load ONNX model for local tooth detection
-    try {
-      await loadONNXModel(ONNX_MODEL_PATH);
-      console.log('✅ Tooth detection ready! Model running locally in browser.');
-      console.log('💡 No API calls, instant detection, works offline!');
-    } catch (error) {
-      console.error('❌ Failed to load tooth detection model:', error);
-      console.error('💡 Make sure model file exists at:', ONNX_MODEL_PATH);
-      console.error('📖 See ONNX_LOCAL_SETUP.md for setup instructions');
-    }
-    console.log('');
-  } else {
-    console.log('🚫 Tooth detection DISABLED (model too buggy, causes lag)');
-    console.log('💡 Set ENABLE_TOOTH_DETECTION = true when you have a better model');
-    console.log('');
-  }
-
-  // Enable diagnostics
   enableDiagnostics();
-
-  // Check for existing session
   const existingSession = loadCurrentSession();
-  if (existingSession) {
-    console.log('💾 [DEBUG] Found existing session:', existingSession.id);
-    
-    // Optionally restore session (you can add a prompt here)
-    // For now, we'll just log it
-    console.log('📊 [DEBUG] Previous session available. Status:', existingSession.status);
-    
-    // You could add UI to let user view their previous scan
-    // For this implementation, we'll start fresh each time
-  }
-
-  // Don't auto-start camera - wait for user interaction
-  // This fixes mobile/Vercel issues where auto-start causes permission conflicts
   console.log('📹 [DEBUG] Camera ready to start on user interaction');
-  
   const startOverlay = document.getElementById('cameraStartOverlay');
-  
-  // Add click listener to start camera on user interaction with overlay
   if (startOverlay && !camera) {
     startOverlay.addEventListener('click', async () => {
       if (!camera) {
-        console.log('📹 [DEBUG] User clicked start overlay, starting camera...');
         const started = await startCamera();
-        if (started) {
-          setCookie('beame_camera_prompted', 'true', 365);
-          startOverlay.classList.add('hidden');
-        }
+        if (started) { setCookie('beame_camera_prompted', 'true', 365); startOverlay.classList.add('hidden'); }
       }
     });
-    
-    // Initial status
     cameraStatus.textContent = currentLanguage === 'en' ? 'Waiting for camera...' : '等待啟動攝像頭';
-    cameraStatus.style.color = '#f08c00'; // Orange
-    
-    // Update status dot color to orange (waiting)
+    cameraStatus.style.color = '#f08c00';
     const statusBadge = document.getElementById('cameraStatusBadge');
     const statusDot = statusBadge?.querySelector('.status-dot') as HTMLElement;
-    if (statusDot) {
-      statusDot.style.background = '#f08c00';
-      statusDot.style.boxShadow = '0 0 10px #f08c00';
-    }
+    if (statusDot) { statusDot.style.background = '#f08c00'; statusDot.style.boxShadow = '0 0 10px #f08c00'; }
   }
-  
-  // Log available elements
-  console.log('🔍 [DEBUG] Checking DOM elements...');
-  console.log('  - treatmentPlanSection:', !!treatmentPlanSection);
-  console.log('  - stageWebcam:', !!stageWebcam);
-  console.log('  - stageOverlay:', !!stageOverlay);
 }
 
-// Expose initializeStageCapture to window for tab switching
 (window as any).initializeStageCapture = initializeStageCapture;
-
-// Call initialization
 initializeApp();
-
-
