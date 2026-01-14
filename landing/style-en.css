@@ -200,7 +200,8 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   background: white;
   overflow: hidden;
   border-bottom: 2px solid var(--beame-green);
-  height: calc(100vh - 70px);
+  height: 80vh; /* Reduced from 85vh to ensure arrow is seen above fold */
+  min-height: 550px;
 }
 
 .computer_img_top, .move_img {
@@ -215,14 +216,17 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
 
 .pc-view {
   display: block !important;
+  height: 100%;
 }
 
 .mobile-view {
   display: none !important;
+  height: 100%;
 }
 
 .pc-view.row {
   display: flex !important;
+  height: auto; /* Reset for grid rows */
 }
 
 /* Mobile Journey Section Refactor */
@@ -279,6 +283,107 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   margin-bottom: -5px;
 }
 
+/* Banner Overlay & Content */
+.banner-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: 20px;
+  background: rgba(0,0,0,0.2); /* Subtle overlay for all views */
+}
+
+.banner-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(15px, 3vh, 25px);
+  width: 90%;
+  max-width: 600px;
+  text-align: center;
+  animation: fadeInUp 1s ease-out;
+  margin-top: -8vh; /* Lifted up by default */
+  transition: margin-top 0.3s ease;
+}
+
+@media (max-width: 1400px) {
+  .banner-content {
+    margin-top: -12vh; /* Lift further as screen gets smaller/narrower */
+  }
+}
+
+.banner-subtext {
+  color: white;
+  font-size: clamp(15px, 1.8vw, 20px);
+  font-weight: 500;
+  text-shadow: 0 2px 15px rgba(0,0,0,0.6);
+  max-width: 90%;
+  line-height: 1.4;
+}
+
+.banner-logo {
+  width: 100%;
+  max-width: clamp(250px, 35vw, 450px);
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.8));
+}
+
+.deta_button_3 {
+  background: var(--beame-gradient);
+  color: white;
+  padding: 16px 48px;
+  border-radius: 50px;
+  font-size: 20px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 20px rgba(0, 206, 124, 0.3);
+  font-family: inherit;
+  letter-spacing: 1px;
+}
+
+.deta_button_3:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 15px 30px rgba(0, 206, 124, 0.4);
+  background: linear-gradient(135deg, #00e489, #008B5E);
+}
+
+.scroll-arrow {
+  position: absolute;
+  bottom: 50px; /* Raised slightly */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  transition: opacity 0.3s ease;
+  animation: bounce 2s infinite;
+  cursor: pointer;
+}
+
+.arrow-icon {
+  width: 24px;
+  height: 24px;
+  border-right: 3px solid white;
+  border-bottom: 3px solid white;
+  transform: rotate(45deg);
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {transform: translateX(-50%) translateY(0);}
+  40% {transform: translateX(-50%) translateY(-10px);}
+  60% {transform: translateX(-50%) translateY(-5px);}
+}
+
 @media (max-width: 1024px), (orientation: portrait) {
   .pc-view {
     display: none !important;
@@ -288,32 +393,28 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   }
   
   .computer {
-    height: 75vh;
-    min-height: 450px;
+    height: 80vh; /* Consistent height */
+    min-height: 500px;
   }
   
   .banner-overlay {
     background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 70%);
-    padding-bottom: 50px;
-    justify-content: center;
-    align-items: flex-end;
-    padding-right: 20px;
-    padding-left: 20px;
+    padding-bottom: 60px;
   }
 
   .banner-content {
-    width: 100%;
-    max-width: 400px;
+    max-width: 450px;
   }
 
   .banner-logo {
-    max-width: 200px;
+    max-width: clamp(220px, 60vw, 320px);
   }
   
   .deta_button_3 {
     padding: 14px 40px !important;
     font-size: 18px !important;
     width: 100%;
+    max-width: 300px;
   }
 
   .BraceTeeth, .BraceTeeth_2 {
@@ -365,107 +466,6 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   .free-container {
     grid-template-columns: 1fr !important;
   }
-}
-    grid-template-columns: 1fr !important;
-  }
-}
-
-.banner-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  padding: 20px;
-}
-
-.banner-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  width: 100%;
-  max-width: 600px;
-  text-align: center;
-  animation: fadeInUp 1s ease-out;
-}
-
-.banner-subtext {
-  color: white;
-  font-size: clamp(16px, 2vw, 22px);
-  font-weight: 500;
-  text-shadow: 0 2px 15px rgba(0,0,0,0.6);
-  opacity: 1;
-  max-width: 85%;
-  line-height: 1.4;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.banner-logo {
-  width: 100%;
-  max-width: clamp(280px, 40vw, 500px);
-  /* Layered shadow for maximum visibility on complex backgrounds */
-  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.8));
-}
-
-.deta_button_3 {
-  background: var(--beame-gradient);
-  color: white;
-  padding: 16px 48px;
-  border-radius: 50px;
-  font-size: 20px;
-  font-weight: 800;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 10px 20px rgba(0, 206, 124, 0.3);
-  font-family: inherit;
-  letter-spacing: 1px;
-}
-
-.deta_button_3:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 15px 30px rgba(0, 206, 124, 0.4);
-  background: linear-gradient(135deg, #00e489, #008B5E);
-}
-
-.scroll-arrow {
-  position: absolute;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 15;
-  transition: opacity 0.3s ease;
-  animation: bounce 2s infinite;
-}
-
-.arrow-icon {
-  width: 20px;
-  height: 20px;
-  border-right: 3px solid white;
-  border-bottom: 3px solid white;
-  transform: rotate(45deg);
-  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
-}
-
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {transform: translateX(-50%) translateY(0);}
-  40% {transform: translateX(-50%) translateY(-10px);}
-  60% {transform: translateX(-50%) translateY(-5px);}
 }
 
 /* Original Styles from aligner.vue */
