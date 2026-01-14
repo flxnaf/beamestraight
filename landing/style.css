@@ -225,6 +225,64 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   display: flex !important;
 }
 
+/* Journey Mobile Styles */
+.journey-mobile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  max-width: 400px;
+  margin: 30px auto;
+  padding: 0 15px;
+}
+
+.journey-mobile .step {
+  width: 100%;
+  background: white;
+  border: 2px solid #00e467;
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.3s ease;
+}
+
+.journey-mobile .step:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+}
+
+.journey-mobile-icon {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  margin-bottom: 10px;
+}
+
+.journey-mobile .advantage_h3 {
+  font-size: 18px;
+  margin: 0 0 5px 0;
+  color: var(--text-main);
+}
+
+.journey-mobile .advantage_p {
+  font-size: 14px;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.advantage_arrow {
+  font-size: 24px;
+  font-weight: 900;
+  color: #00e467;
+  margin-top: 15px;
+  margin-bottom: -10px;
+}
+
 @media (max-width: 1024px) {
   .pc-view {
     display: none !important;
@@ -232,8 +290,23 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   .mobile-view {
     display: block !important;
   }
-  .mobile-view.advantage_div_3 {
-    display: flex !important;
+  
+  .navbar-container {
+    padding: 0 15px;
+  }
+  .logo img {
+    height: 45px;
+  }
+  .lang-btn {
+    padding: 6px 12px;
+  }
+  .process_h2, .process_h2_1, .Price_h2_3, .evaluate_h2, .advantage_h2 {
+    font-size: 28px;
+  }
+  
+  .process_h3, .process_h3_1, .Price_h3_2 {
+    width: 90%;
+    font-size: 20px;
   }
 
   .banner-overlay {
@@ -242,88 +315,67 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%);
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 70%);
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: center;
-    padding: 0 20px 60px 20px;
+    padding: 20px;
+    text-align: center;
   }
 
   .banner-content {
     width: 100%;
-    gap: 15px;
+    max-width: 500px;
+    gap: 20px;
     animation: fadeInUp 0.8s ease-out;
-  }
-
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
 
   .banner-logo {
-    max-width: 280px;
+    max-width: clamp(200px, 50vw, 280px);
     filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3));
   }
 
   .deta_button_3 {
-    padding: 12px 32px !important;
+    padding: 14px 40px !important;
     font-size: 18px !important;
   }
 
-  .BraceTeeth, .BraceTeeth_2 {
-    min-height: 300px !important;
-    padding: 30px !important;
+  .free-container, .knowledge, .promotion {
+    grid-template-columns: 1fr;
+    display: block;
+  }
+  
+  .free-content, .BraceTeeth, .BraceTeeth_2 {
     margin-bottom: 20px;
   }
-
-  .BraceTeeth_h2, .BraceTeeth_h2_2 {
-    font-size: 28px !important;
+  
+  .CaseStudy, .Heavyhoop {
+    position: static;
+    text-align: center;
+    padding: 20px;
+    max-width: 100%;
   }
-
-  .BraceTeeth_p, .BraceTeeth_p_2 {
-    font-size: 16px !important;
+  
+  .gift_div {
+    flex-direction: column;
+    text-align: center;
   }
-
-  .feedback-div {
-    flex-direction: column !important;
-    height: auto !important;
+  
+  .gift_img {
+    margin-top: 30px;
+    max-width: 100%;
   }
-
-  .feedback-left, .feedback-right {
-    width: 100% !important;
-    padding: 30px !important;
+  
+  .compare_2 {
+    width: 100%;
   }
-
-  .feedback-name {
-    font-size: 24px !important;
-  }
-
-  .feedback-name-span {
-    font-size: 20px !important;
-  }
-
-  .free-title {
-    font-size: 30px !important;
-  }
-
-  .free-tags {
-    font-size: 20px !important;
-  }
-
-  .free-div {
-    width: 95% !important;
-    font-size: 16px !important;
-    padding: 20px !important;
-  }
-
-  .free-container {
-    grid-template-columns: 1fr !important;
+  
+  .advantage_2 {
+    flex-direction: column;
   }
 }
 
@@ -401,31 +453,6 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   background: linear-gradient(135deg, #00e489, #008B5E);
 }
 
-.scroll-arrow {
-  position: absolute;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 15;
-  transition: opacity 0.3s ease;
-  animation: bounce 2s infinite;
-}
-
-.arrow-icon {
-  width: 20px;
-  height: 20px;
-  border-right: 3px solid white;
-  border-bottom: 3px solid white;
-  transform: rotate(45deg);
-  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
-}
-
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {transform: translateX(-50%) translateY(0);}
-  40% {transform: translateX(-50%) translateY(-10px);}
-  60% {transform: translateX(-50%) translateY(-5px);}
-}
-
 /* Original Styles from aligner.vue */
 .process_h2, .process_h2_1, .Price_h2_3, .video_h2, .process_h2_2, .evaluate_h2, .advantage_h2 {
   display: flex !important;
@@ -466,8 +493,8 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   font-size: clamp(20px, 4vw, 32px);
   padding: 2px 0 0;
   background: linear-gradient(90deg, rgba(0, 255, 0, 0), #94e7bf, #29cf7e, #94e7bf, rgba(0, 255, 0, 0));
-  width: 80%;
-  max-width: 500px;
+  width: 80%; /* Increased for English */
+  max-width: 600px;
   text-align: center;
   margin: 0 auto 60px auto;
   font-weight: 700;
@@ -814,8 +841,8 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
 .Price_h3_2 {
   font-size: clamp(20px, 4vw, 32px);
   background: linear-gradient(90deg, rgba(0, 255, 0, 0), #94e7bf, #29cf7e, #94e7bf, rgba(0, 255, 0, 0));
-  width: 80%;
-  max-width: 500px;
+  width: 80%; /* Increased for English */
+  max-width: 600px;
   text-align: center;
   margin: 0 auto 40px auto;
   font-weight: 700;
@@ -877,466 +904,6 @@ td {
 .Consultant_img {
   width: 100%;
   border-radius: 20px;
-}
-
-.CaseStudy {
-  position: absolute;
-  top: 10%;
-  left: 50px;
-  max-width: 500px;
-  z-index: 2;
-  text-align: left;
-}
-
-.Price_h2_2 {
-  font-size: 40px;
-  font-weight: 700;
-  margin-bottom: 20px;
-}
-
-.Price_h3_1 {
-  font-size: 28px;
-  margin-bottom: 30px;
-}
-
-.Heavyhoop {
-  position: absolute;
-  top: 20%;
-  right: 50px;
-  max-width: 400px;
-  text-align: right;
-  z-index: 2;
-}
-
-.Heavyhoop_h2 {
-  font-size: 50px;
-  color: var(--beame-green);
-  font-weight: 800;
-}
-
-.gift {
-  background: #d3f5e5;
-  padding: 80px 0;
-}
-
-.gift_div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.process_h2_4 {
-  font-size: 40px;
-  font-weight: 700;
-  margin-bottom: 30px;
-}
-
-.evaluate_div {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 30px;
-  margin: 60px 0;
-}
-
-.evaluate_box {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 180px;
-  height: 100px;
-}
-
-.evaluate_img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-/* Feedback Carousel */
-.feedback-carousel-container {
-  position: relative;
-  overflow: hidden;
-  max-width: 850px;
-  margin: 0 auto;
-}
-
-.feedback-track {
-  display: flex;
-  transition: transform 0.5s ease-in-out;
-}
-
-.feedback-slide {
-  min-width: 100%;
-}
-
-.carousel-dots {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 30px;
-}
-
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #ccc;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.dot.active {
-  background: var(--beame-green);
-  transform: scale(1.2);
-}
-
-.knowledge {
-  display: flex;
-  gap: 30px;
-  margin-top: 40px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-/* Enhanced Bottom Banner */
-.Bottom {
-  background: var(--beame-gradient);
-  color: white;
-  padding: 80px 20px;
-  text-align: center;
-  margin-top: 80px;
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-}
-
-.Bottom::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50 10l10 30h30l-25 20 10 30-25-20-25 20 10-30-25-20h30z' fill='white' fill-opacity='0.05'/%3E%3C/svg%3E");
-  opacity: 0.5;
-  animation: footerPulse 8s ease-in-out infinite;
-}
-
-@keyframes footerPulse {
-  0% { transform: scale(1) rotate(0deg); opacity: 0.3; }
-  50% { transform: scale(1.1) rotate(2deg); opacity: 0.5; }
-  100% { transform: scale(1) rotate(0deg); opacity: 0.3; }
-}
-
-.Bottom p {
-  font-size: clamp(18px, 3vw, 24px);
-  font-weight: 600;
-  margin: 0;
-  letter-spacing: 1px;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  position: relative;
-  z-index: 1;
-}
-
-.Bottom .copyright {
-  font-size: 14px;
-  opacity: 0.7;
-  margin-top: 25px;
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: normal;
-  display: block;
-}
-
-/* Background Patterns & Stylistic Flair */
-body {
-  background-color: #fcfdfd;
-  background-image: 
-    radial-gradient(circle at 0% 0%, rgba(0, 206, 124, 0.05) 0%, transparent 25%),
-    radial-gradient(circle at 100% 100%, rgba(0, 206, 124, 0.05) 0%, transparent 25%),
-    radial-gradient(var(--beame-green) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 40px 40px;
-  background-attachment: fixed;
-}
-
-/* Section Layouts & Variation */
-.section-with-pattern {
-  position: relative;
-  background: white;
-  border-radius: var(--radius-xl);
-  margin: 40px auto;
-  padding: 80px 40px;
-  box-shadow: var(--shadow-md);
-  overflow: hidden;
-  max-width: 1200px;
-}
-
-.section-soft-green {
-  background: var(--beame-gradient-soft);
-  padding: 100px 0;
-  margin: 0 0 60px 0;
-  position: relative;
-}
-
-.section-soft-green::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 100px;
-  background: linear-gradient(to top, #fcfdfd, transparent);
-}
-
-.section-white {
-  background: white;
-  padding: 80px 0;
-}
-
-/* Centering Improvements */
-.row.justify-content-center {
-  justify-content: center !important;
-}
-
-.advantage_div_2 {
-  justify-content: center !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-}
-
-/* Spacing Improvements */
-.evaluate_h2 {
-  margin-top: 140px !important; /* Increased space above Media Recommended */
-  margin-bottom: 40px !important;
-}
-
-/* Redefine Journey steps to not be cards */
-.advantage_div .col-md-2 {
-  background: transparent;
-  padding: 20px;
-  transition: transform 0.3s ease;
-}
-
-.advantage_div .col-md-2:hover {
-  transform: translateY(-10px);
-}
-
-.advantage_img4 {
-  filter: drop-shadow(0 4px 10px rgba(0, 206, 124, 0.2));
-}
-
-/* Centering for Feedback */
-.feedback-carousel-container {
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.feedback-div {
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.free-div {
-  background-color: rgba(0, 206, 124, 0.08);
-  border: 2px solid rgba(0, 206, 124, 0.1);
-}
-
-.step {
-  border-color: var(--beame-green) !important;
-  background: white;
-  transition: all 0.3s ease;
-}
-
-.step:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--beame-green-hover) !important;
-}
-
-.BraceTeeth, .BraceTeeth_2 {
-  flex: 1;
-  padding: 60px;
-  border-radius: 30px;
-  background-size: cover;
-  background-position: center;
-  text-align: center;
-  min-height: 400px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  overflow: hidden;
-  color: white;
-  z-index: 1;
-}
-
-.BraceTeeth::before, .BraceTeeth_2::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: -1;
-  transition: all 0.3s ease;
-}
-
-.BraceTeeth:hover::before, .BraceTeeth_2:hover::before {
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.BraceTeeth_h2, .BraceTeeth_h2_2 {
-  font-size: 36px;
-  font-weight: 800;
-  margin-bottom: 15px;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-}
-
-.BraceTeeth_p, .BraceTeeth_p_2 {
-  font-size: 18px;
-  margin-bottom: 30px;
-  max-width: 80%;
-  text-shadow: 0 1px 5px rgba(0,0,0,0.3);
-}
-
-.Bottom_Kindly {
-  padding: 40px 0;
-  font-size: 14px;
-  color: #666;
-  border-top: 1px solid #eee;
-}
-
-.advantage_div_2 {
-  margin-bottom: 60px;
-}
-
-.advantage_img4 {
-  width: 120px !important;
-  height: 120px !important;
-  object-fit: contain;
-  margin: 0 auto 20px auto;
-  display: block;
-}
-
-.advantage_h3 {
-  font-size: 20px !important;
-  margin-top: 15px !important;
-  margin-bottom: 10px !important;
-  font-weight: 700;
-  text-align: center;
-}
-
-.advantage_p {
-  font-size: 15px !important;
-  margin-bottom: 0 !important;
-  line-height: 1.4 !important;
-  text-align: center;
-}
-
-.advantage_div_3 {
-  margin-top: 30px;
-  display: flex;
-  justify-content: flex-start;
-  text-align: left;
-}
-
-.advantage_width {
-  width: 100px;
-  flex-shrink: 0;
-}
-
-.advantage_margin {
-  width: 50px !important;
-  height: 50px !important;
-  margin: 10px 0 40px 0 !important;
-  display: block;
-}
-
-.step {
-  padding: 8px 20px 15px 20px !important;
-  border: 1px solid #00e467;
-  margin: 0 0 20px 0 !important;
-  border-radius: 15px;
-  flex: 1;
-}
-
-.advantage_p3 {
-  font-size: 30px;
-  margin-bottom: -77px;
-  font-weight: 900;
-  color: #00e467;
-}
-
-@media (max-width: 1024px) {
-  .navbar-container {
-    padding: 0 10px;
-  }
-  .logo img {
-    height: 45px;
-  }
-  .lang-btn {
-    padding: 4px 10px;
-  }
-  .process_h2, .process_h2_1, .Price_h2_3, .evaluate_h2, .advantage_h2 {
-    font-size: 28px;
-  }
-  
-  .process_h3, .process_h3_1, .Price_h3_2 {
-    width: 90%;
-    font-size: 20px;
-  }
-
-  .advantage_margin {
-    width: 40px !important;
-    height: 40px !important;
-    margin: 15px 0 35px 0 !important;
-  }
-  
-  .advantage_width {
-    width: 60px;
-  }
-  
-  .free-container, .knowledge, .promotion {
-    grid-template-columns: 1fr;
-    display: block;
-  }
-  
-  .free-content, .BraceTeeth, .BraceTeeth_2 {
-    margin-bottom: 20px;
-  }
-  
-  .CaseStudy, .Heavyhoop {
-    position: static;
-    text-align: center;
-    padding: 20px;
-    max-width: 100%;
-  }
-  
-  .gift_div {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .gift_img {
-    margin-top: 30px;
-    max-width: 100%;
-  }
-  
-  .compare_2 {
-    width: 100%;
-  }
-  
-  .advantage_2 {
-    flex-direction: column;
-  }
 }
 
 .card-content {
