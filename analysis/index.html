@@ -11,7 +11,9 @@
     <nav class="fixed-top">
         <div class="navbar-container">
             <div class="logo-container">
-                <a href="../landing/index.html" class="logo">be@me</a>
+                <a href="../landing/index.html" class="logo">
+                    <img src="../landing/pics/beamelogogreen.png" alt="Beame Logo">
+                </a>
             </div>
             <div class="nav-right">
                 <div class="language-switcher">
@@ -206,7 +208,20 @@
                                 </div>
 
                                 <div class="case-status">
-                                    <span class="case-chip" id="assessmentCaseChip">...</span>
+                                    <div class="case-visualizer">
+                                        <div class="case-tier tier-mild" id="tier-MILD">
+                                            <span class="tier-label" data-en="MILD" data-zh="輕度">MILD</span>
+                                        </div>
+                                        <div class="case-tier tier-moderate" id="tier-MODERATE">
+                                            <span class="tier-label" data-en="MODERATE" data-zh="中度">MODERATE</span>
+                                        </div>
+                                        <div class="case-tier tier-complex" id="tier-COMPLEX">
+                                            <span class="tier-label" data-en="COMPLEX" data-zh="複雜度">COMPLEX</span>
+                                        </div>
+                                        <div class="case-tier tier-urgent" id="tier-URGENT">
+                                            <span class="tier-label" data-en="URGENT" data-zh="緊急">URGENT</span>
+                                        </div>
+                                    </div>
                                     <span class="case-meta" id="assessmentMeta"></span>
                                 </div>
 
@@ -429,7 +444,46 @@
                             </div>
                         </div>
 
-                        <p class="capture4-hint" data-en="Capture all 4 angles for the best assessment." data-zh="拍攝 4 個角度以獲得最佳評估。">
+                        <!-- Interest Form (Appears after 4 photos) -->
+                        <div id="stageForm" class="interest-form" style="display: none;">
+                            <div class="form-header">
+                                <h3 data-en="Complete Your Profile" data-zh="完成您的個人資料">Complete Your Profile</h3>
+                                <p data-en="Our specialists will review your 4 scans and contact you with a detailed clinical assessment." 
+                                   data-zh="我們的專員將審核您的 4 張掃描照片，並聯絡您提供詳細的臨床評估。">
+                                   Our specialists will review your 4 scans and contact you with a detailed clinical assessment.
+                                </p>
+                            </div>
+                            
+                            <div class="form-body">
+                                <div class="form-group">
+                                    <label for="userName" data-en="Preferred Name" data-zh="稱呼">Preferred Name</label>
+                                    <input type="text" id="userName" placeholder="e.g. Alex">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="userEmail" data-en="Email Address" data-zh="電子郵件">Email Address</label>
+                                    <input type="email" id="userEmail" placeholder="example@email.com">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="userPhone" data-en="Phone Number" data-zh="電話號碼">Phone Number</label>
+                                    <input type="tel" id="userPhone" placeholder="+852 1234 5678">
+                                </div>
+
+                                <div class="form-notice">
+                                    <svg class="icon-svg-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+                                    </svg>
+                                    <span data-en="Your data is encrypted and secure." data-zh="您的數據已加密且安全。">Your data is encrypted and secure.</span>
+                                </div>
+                                
+                                <button id="finalSubmitBtn" class="btn-app btn-primary full-width">
+                                    <span data-en="Submit My Scans" data-zh="提交我的掃描">Submit My Scans</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <p class="capture4-hint" id="captureHint" data-en="Capture all 4 angles for the best assessment." data-zh="拍攝 4 個角度以獲得最佳評估。">
                             Capture all 4 angles for the best assessment.
                         </p>
                     </div>
@@ -438,6 +492,7 @@
         </main>
 
         <footer class="app-footer">
+            <img src="../landing/pics/beamelogogreen.png" alt="Beame Logo" class="footer-logo">
             <p>&copy; 2026 Beame AI - <span data-en="Transforming Smiles" data-zh="改變笑容">Transforming Smiles</span></p>
         </footer>
     </div>

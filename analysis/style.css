@@ -104,10 +104,31 @@ body.app-body {
 }
 
 .logo {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--beame-green);
   text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.logo img {
+  height: 55px;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.logo:hover img {
+  transform: scale(1.05);
+}
+
+.footer-logo {
+  height: 60px;
+  margin-bottom: 15px;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.1));
+}
+
+.inline-logo {
+  height: 1.2em;
+  vertical-align: middle;
+  margin: 0 4px;
 }
 
 .language-switcher {
@@ -831,48 +852,64 @@ body.app-body {
    ============================================ */
 
 #aiAssessmentSection {
-  display: none; /* Hidden until analysis complete */
+  display: none;
 }
 
-.case-status {
+.case-visualizer {
+  display: flex;
+  width: 100%;
+  height: 44px; /* Slightly slimmer for a more modern look */
+  background: #f0f0f0;
+  border-radius: 12px; /* Matched to tiers */
+  overflow: hidden;
+  margin-bottom: 25px;
+  padding: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.case-tier {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  justify-content: center;
+  transition: all 0.3s ease;
+  opacity: 0.4;
+  filter: grayscale(0.8);
+  position: relative;
+  border-radius: 8px; /* Slightly smaller than container for padding effect */
+  cursor: default;
 }
 
-.case-chip {
-  display: inline-block;
-  padding: 6px 16px;
-  border-radius: 50px;
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
+.case-tier.active {
+  opacity: 1;
+  filter: grayscale(0);
+  /* Removed flex: 1.5 to keep boxes uniform size */
 }
 
-.case-chip.mild {
-  background: #e6fcf5;
-  color: #0ca678;
+.tier-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #666; /* Default color for inactive */
+  letter-spacing: 0.8px;
+  transition: all 0.3s ease;
 }
 
-.case-chip.moderate {
-  background: #fff9db;
-  color: #f08c00;
+.case-tier.active .tier-label {
+  color: white;
 }
 
-.case-chip.complex {
-  background: #ffeadb;
-  color: #d9480f;
-}
-
-.case-chip.urgent {
-  background: #fff5f5;
-  color: #e03131;
-}
+.tier-mild.active { background: #0ca678; box-shadow: 0 4px 12px rgba(12, 166, 120, 0.2); }
+.tier-moderate.active { background: #f08c00; box-shadow: 0 4px 12px rgba(240, 140, 0, 0.2); }
+.tier-complex.active { background: #e03131; box-shadow: 0 4px 12px rgba(224, 49, 49, 0.2); }
+.tier-urgent.active { background: #c92a2a; box-shadow: 0 4px 12px rgba(201, 42, 42, 0.2); }
 
 .case-meta {
   font-size: 12px;
   color: var(--text-light);
+  display: block;
+  text-align: right;
+  margin-top: -10px;
+  margin-bottom: 20px;
 }
 
 .case-cards {
@@ -1274,6 +1311,103 @@ body.app-body {
 }
 
 /* ============================================
+   INTEREST FORM (Tab 3 Submission)
+   ============================================ */
+
+.interest-form {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 30px;
+  box-shadow: var(--shadow-md);
+  margin-top: 20px;
+  animation: slideUp 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+  border: 1px solid #f0f0f0;
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.form-header h3 {
+  color: var(--beame-green);
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-header p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.form-body {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 14px 18px;
+  border: 2px solid #f0f0f0;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--text-main);
+  transition: all 0.3s ease;
+  background: #fcfcfc;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--beame-green);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(0, 206, 124, 0.1);
+}
+
+.form-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 25px;
+  color: var(--text-light);
+  font-size: 12px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.btn-primary.full-width {
+  display: block;
+  padding: 16px;
+}
+
+@media (max-width: 768px) {
+  .interest-form {
+    padding: 20px;
+  }
+}
+
+/* ============================================
    FOOTER
    ============================================ */
 
@@ -1303,13 +1437,46 @@ body.app-body {
    ============================================ */
 
 @media (max-width: 768px) {
-  .app-header h1 { font-size: 28px; }
-  .subtitle { font-size: 16px; }
+  .app-header h1 { font-size: 24px; }
+  .subtitle { font-size: 13px; }
   
-  .comparison-grid { flex-direction: column; }
-  .comparison-arrow { transform: rotate(90deg); margin: 10px 0; }
+  .video-container {
+    aspect-ratio: 4/3;
+    max-height: 40vh;
+  }
+
+  .comparison-grid { 
+    flex-direction: column; 
+    gap: 20px; /* Increased gap for better spacing on mobile */
+  }
+  .comparison-arrow { 
+    transform: rotate(90deg); 
+    margin: 5px 0; 
+    font-size: 20px;
+  }
+  
+  /* Ensure img-wrap has enough space for scanner animation on mobile */
+  .img-wrap {
+    min-height: 200px; /* Ensure minimum height for scanner */
+  }
+  
+  .processing-loader {
+    padding: 10px; /* Add padding so scanner doesn't touch edges */
+  }
   
   .metrics-grid { grid-template-columns: 1fr; }
   
   .viewer-ui { flex-direction: column; gap: 10px; align-items: center; }
+
+  .app-tabs {
+    padding: 2px;
+  }
+  
+  .tab-item {
+    padding: 6px 4px;
+  }
+  
+  .tab-item .label {
+    font-size: 10px;
+  }
 }

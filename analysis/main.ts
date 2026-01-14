@@ -18,7 +18,7 @@ import type { ScanSession, DentalAnalysis, TreatmentPlan } from './types/dental'
 import { loadONNXModel, detectTeethONNX, isONNXReady } from './services/onnxInference';
 
 // CONFIGURATION: Set to true to save API credits during development
-const USE_FALLBACK_MODE = true; // Set to false to enable real AI generation
+const USE_FALLBACK_MODE = false; // Set to false to enable real AI generation
 
 // Initialize Gemini AI (unused in fallback mode)
 const _genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
@@ -35,6 +35,9 @@ const USE_ROBOFLOW_FALLBACK = ROBOFLOW_API_KEY.length > 0 && ROBOFLOW_MODEL_ID.l
 
 // Language state and translations
 let currentLanguage = localStorage.getItem('beame-language') || 'en';
+// Normalize language key
+if (currentLanguage.includes('zh')) currentLanguage = 'zh';
+if (currentLanguage.includes('en')) currentLanguage = 'en';
 
 const translations: Record<string, Record<string, string>> = {
   en: {
@@ -55,9 +58,17 @@ const translations: Record<string, Record<string, string>> = {
     preparingPlan: 'Preparing treatment plan...',
     eligibleTitle: 'Eligible for Treatment',
     reviewTitle: 'Clinical Review Required',
+    rejectTitle: 'Not Suitable for Aligners',
     defaultMessage: 'Assessment complete.',
     months: 'months',
-    aligners: 'aligners'
+    aligners: 'aligners',
+    crowdingCorrection: 'Crowding Correction',
+    rotationCorrection: 'Rotation Correction',
+    spacingCorrection: 'Spacing Correction',
+    midlineCorrection: 'Midline Correction',
+    biteCorrection: 'Bite Correction',
+    'All-Day': 'All-Day',
+    'Night': 'Night'
   },
   zh: {
     cameraStarting: '正在啟動...',
@@ -77,24 +88,59 @@ const translations: Record<string, Record<string, string>> = {
     preparingPlan: '正在準備治療報告...',
     eligibleTitle: '符合治療條件',
     reviewTitle: '需要臨床審核',
+    rejectTitle: '不適合隱形牙套',
     defaultMessage: '評估完成。',
     months: '個月',
-    aligners: '個牙套'
+    aligners: '個牙套',
+    crowdingCorrection: '擁擠矯正',
+    rotationCorrection: '旋轉矯正',
+    spacingCorrection: '間隙矯正',
+    midlineCorrection: '中線矯正',
+    biteCorrection: '咬合矯正',
+    'All-Day': '全天佩戴',
+    'Night': '夜間佩戴'
   }
 };
 
 function t(key: string): string {
-  return translations[currentLanguage]?.[key] || key;
+  if (!translations[currentLanguage]) {
+    console.warn(`[DEBUG] Language "${currentLanguage}" not found in translations`);
+    return key;
+  }
+  return translations[currentLanguage][key] || key;
 }
 
 window.addEventListener('languageChanged', (e: any) => {
+  console.log(`[DEBUG] Language changed to: ${e.detail}`);
   currentLanguage = e.detail;
+  
+  // Update all translated elements in the DOM
+  document.querySelectorAll('[data-en]').forEach((el: any) => {
+    const translation = el.getAttribute(`data-${currentLanguage}`);
+    if (translation) el.textContent = translation;
+  });
+
   // Trigger UI update for current state
   if (cameraStatus) cameraStatus.textContent = t('cameraActive');
   if (faceStatus) faceStatus.textContent = faceDetected ? t('faceDetected') : t('noFace');
   // Update analysis status label
   if (analysisStatus) {
     analysisStatus.textContent = mouthOpen ? t('readyCapture') : t('openMouthWider');
+  }
+
+  // Refresh treatment plan if it exists
+  if (currentSession?.treatmentPlan) {
+    // We need to re-apply overrides to get the right language for reasons
+    const caseType = document.querySelector('.case-tier.active')?.id.replace('tier-', '') || 'MODERATE';
+    const updatedPlan = overridePlanWithClassification(currentSession.treatmentPlan, caseType);
+    displayTreatmentPlan(updatedPlan);
+    
+    // Also update classification visualizer label
+    const activeTier = document.querySelector('.case-tier.active');
+    if (activeTier) {
+      const classification = activeTier.id.replace('tier-', '') as 'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT';
+      displayCaseClassification(classification);
+    }
   }
 });
 
@@ -166,6 +212,12 @@ const stageTitleEl = document.getElementById('stageTitle') as HTMLHeadingElement
 const stageInstructionEl = document.getElementById('stageInstruction') as HTMLParagraphElement;
 const stageReadyBadge = document.getElementById('stageReadyBadge') as HTMLDivElement;
 const stageReadyText = document.getElementById('stageReadyText') as HTMLSpanElement;
+const stageForm = document.getElementById('stageForm') as HTMLDivElement;
+const captureHint = document.getElementById('captureHint') as HTMLParagraphElement;
+const finalSubmitBtn = document.getElementById('finalSubmitBtn') as HTMLButtonElement;
+const userNameInput = document.getElementById('userName') as HTMLInputElement;
+const userEmailInput = document.getElementById('userEmail') as HTMLInputElement;
+const userPhoneInput = document.getElementById('userPhone') as HTMLInputElement;
 const thumbBtns = [
   document.getElementById('thumb-0') as HTMLButtonElement,
   document.getElementById('thumb-1') as HTMLButtonElement,
@@ -953,9 +1005,14 @@ async function capturePhoto() {
   }
   
   await Promise.all(analysisPromises);
-  processingIndicator.style.display = 'none';
-  straightenedImage.style.display = 'block';
-  downloadBtn.style.display = 'inline-block';
+  
+  // FINAL CHECK: Ensure AI Image is actually visible before allowing tabs
+  if (straightenedImage.src) {
+    processingIndicator.style.display = 'none';
+    straightenedImage.style.display = 'block';
+    downloadBtn.style.display = 'inline-block';
+  }
+  
   isProcessing = false;
 }
 
@@ -1064,7 +1121,40 @@ async function classifyDentalCase(imageDataUrl: string): Promise<'MILD' | 'MODER
     const base64Data = imageDataUrl.split(',')[1];
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-    const prompt = `Classify this case into MILD, MODERATE, COMPLEX, or URGENT... Respond with ONLY ONE WORD.`;
+    const prompt = `You are a world-class orthodontist reviewing a patient's photo for clear aligners. 
+Your goal is to be extremely realistic and conservative. DO NOT OVER-DIAGNOSE.
+
+Most people taking this test have relatively healthy teeth with minor cosmetic issues. 
+
+CLASSIFICATION RULES (FOLLOW STRICTLY):
+
+1. **MILD** (DEFAULT - Choose this for ~70% of cases):
+   - Teeth look "fine" or "mostly straight".
+   - Minor crowding of just 1-2 teeth.
+   - Small gaps.
+   - If the teeth look like a normal smile with just slight imperfections, it IS MILD.
+   - DO NOT call this "Complex" just because one tooth is slightly crooked.
+
+2. **MODERATE** (Choose for ~20% of cases):
+   - Clear, visible crowding or spacing.
+   - Multiple teeth noticeably out of alignment.
+   - But the overall arch shape is still recognizable and normal.
+
+3. **COMPLEX** (RARE - Only for ~8% of cases):
+   - Severe overlap where teeth are behind one another.
+   - Massive gaps.
+   - Obvious, extreme misalignment that makes you go "Wow, that's a tough case."
+   - DO NOT USE THIS for standard crowding.
+
+4. **URGENT** (EXTREMELY RARE - ~2%):
+   - Obvious medical issues (swelling, broken teeth, infection).
+
+GUIDANCE:
+- If you are debating between MILD and MODERATE, pick MILD.
+- If you are debating between MODERATE and COMPLEX, pick MODERATE.
+- Most users have "just fine" teeth. If they look "just fine", respond MILD.
+
+Respond with ONLY ONE WORD: MILD, MODERATE, COMPLEX, or URGENT`;
     const result = await model.generateContent([prompt, { inlineData: { mimeType: 'image/png', data: base64Data } }]);
     const text = (await result.response).text().trim().toUpperCase();
     if (text.includes('URGENT')) return 'URGENT';
@@ -1075,17 +1165,31 @@ async function classifyDentalCase(imageDataUrl: string): Promise<'MILD' | 'MODER
 }
 
 function displayCaseClassification(classification: 'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT'): void {
+  console.log(`[DEBUG] Displaying classification: ${classification}`);
   const assessmentSection = document.getElementById('aiAssessmentSection');
-  const chip = document.getElementById('assessmentCaseChip');
+  const tiers = document.querySelectorAll('.case-tier');
   const cards = document.querySelectorAll('.case-card');
+  
   const targetCard = document.getElementById(`caseCard-${classification}`);
-  if (!chip || !targetCard || !assessmentSection) return;
+  const targetTier = document.getElementById(`tier-${classification}`);
+  
+  if (!assessmentSection) return;
   assessmentSection.style.display = 'block';
-  chip.className = `case-chip ${classification.toLowerCase()}`;
-  const chipLabels = { en: { MILD: 'Mild Case', MODERATE: 'Moderate Case', COMPLEX: 'Complex Case', URGENT: 'Urgent Case' }, zh: { MILD: '輕度個案', MODERATE: '中度個案', COMPLEX: '複雜個案', URGENT: '緊急個案' } };
-  chip.textContent = chipLabels[currentLanguage as keyof typeof chipLabels][classification];
-  cards.forEach(card => (card as HTMLElement).style.display = 'none');
-  targetCard.style.display = 'block';
+  
+  // Update Tiers visualizer
+  tiers.forEach(tier => tier.classList.remove('active'));
+  if (targetTier) targetTier.classList.add('active');
+
+  // Update detail cards - IMPORTANT: ensure all other cards are hidden
+  cards.forEach(card => {
+    (card as HTMLElement).style.display = 'none';
+    card.classList.remove('active');
+  });
+  
+  if (targetCard) {
+    targetCard.style.display = 'block';
+    targetCard.classList.add('active');
+  }
 }
 
 async function performDentalAnalysis(cleanImageUrl: string, originalImageUrl: string): Promise<void> {
@@ -1093,23 +1197,98 @@ async function performDentalAnalysis(cleanImageUrl: string, originalImageUrl: st
   try {
     analysisStep.textContent = t('analyzingDental');
     const dentalAnalysis: DentalAnalysis = analyzeDentalArches(currentLandmarks);
+    
+    // Perform classification and plan generation in parallel
     const [caseClassification, treatmentPlan] = await Promise.all([
       classifyDentalCase(cleanImageUrl),
       Promise.resolve(generateTreatmentPlan(dentalAnalysis))
     ]);
+    
+    // OVERRIDE: Ensure clinical plan matches the AI classification
+    const finalPlan = overridePlanWithClassification(treatmentPlan, caseClassification);
+    
+    // 1. Display the classification UI first
     displayCaseClassification(caseClassification);
+    
+    // 2. Display the updated treatment plan details
+    displayTreatmentPlan(finalPlan);
+    
     analysisStep.textContent = t('savingSession');
     const compressedOriginal = await compressImageDataUrl(originalImageUrl);
     const compressedPreview = await compressImageDataUrl(straightenedImage.src);
-    currentSession = { id: generateSessionId(), timestamp: Date.now(), originalImageUrl: compressedOriginal, previewImageUrl: compressedPreview, dentalAnalysis, treatmentPlan, status: 'pending' };
+    
+    currentSession = { 
+      id: generateSessionId(), 
+      timestamp: Date.now(), 
+      originalImageUrl: compressedOriginal, 
+      previewImageUrl: compressedPreview, 
+      dentalAnalysis, 
+      treatmentPlan: finalPlan, 
+      status: 'pending' 
+    };
     saveCurrentSession(currentSession);
+    
     analysisStep.textContent = t('preparingPlan');
-    displayTreatmentPlan(treatmentPlan);
     pendingDentalAnalysis = dentalAnalysis;
+    
+    // TAB ACTIVATION - Wait until everything is done
     const tab3dBtn = document.getElementById('3dTabBtn') as HTMLButtonElement;
-    if (tab3dBtn) { tab3dBtn.disabled = false; tab3dBtn.classList.remove('disabled'); }
+    const planTabBtn = document.getElementById('planTabBtn') as HTMLButtonElement;
+    
+    if (planTabBtn) { 
+      planTabBtn.disabled = false; 
+      planTabBtn.classList.remove('disabled'); 
+    }
+    if (tab3dBtn) { 
+      tab3dBtn.disabled = false; 
+      tab3dBtn.classList.remove('disabled'); 
+    }
+    
     updateProgressSteps(2);
-  } catch (error) { console.error('Dental analysis failed:', error); throw error; }
+  } catch (error) { 
+    console.error('Dental analysis failed:', error); 
+    throw error; 
+  }
+}
+
+/**
+ * Ensures clinical reasons and eligibility match the AI classification
+ */
+function overridePlanWithClassification(plan: TreatmentPlan, classification: string): TreatmentPlan {
+  const overrides: Record<string, { eligibility: any, reasons: string[] }> = {
+    MILD: {
+      eligibility: 'eligible',
+      reasons: currentLanguage === 'en' 
+        ? ['Good candidate for clear aligners', 'Minor adjustments needed', 'Cosmetic alignment recommended']
+        : ['非常適合隱形牙套', '僅需輕微調整', '建議進行美容排列']
+    },
+    MODERATE: {
+      eligibility: 'eligible',
+      reasons: currentLanguage === 'en' 
+        ? ['Suitable for clear aligners', 'Standard crowding detected', 'Predictable tooth movement']
+        : ['適合隱形牙套', '檢測到中度擁擠', '預期牙齒移動量正常']
+    },
+    COMPLEX: {
+      eligibility: 'review',
+      reasons: currentLanguage === 'en' 
+        ? ['Orthodontist review required', 'Complex alignment pattern', 'May require attachments or IPR']
+        : ['需要矯正專科醫師審核', '排列情況較為複雜', '可能需要附件或修磨']
+    },
+    URGENT: {
+      eligibility: 'reject',
+      reasons: currentLanguage === 'en' 
+        ? ['Immediate clinical review recommended', 'Not suitable for home aligners at this time', 'Please visit a dentist for evaluation']
+        : ['建議立即進行臨床檢查', '目前不適合居家牙套', '請諮詢牙醫進行評估']
+    }
+  };
+
+  const override = overrides[classification] || overrides.MODERATE;
+  
+  return {
+    ...plan,
+    eligibility: override.eligibility,
+    reasons: override.reasons
+  };
 }
 
 function updateProgressSteps(currentStep: number): void {
@@ -1132,37 +1311,40 @@ function determineCaseType(plan: TreatmentPlan): 'MILD' | 'MODERATE' | 'COMPLEX'
 }
 
 function displayTreatmentPlan(plan: TreatmentPlan): void {
-  const planTabBtn = document.getElementById('planTabBtn') as HTMLButtonElement;
-  if (planTabBtn) { planTabBtn.disabled = false; planTabBtn.classList.remove('disabled'); }
-  const caseType = determineCaseType(plan);
   const aiAssessmentSection = document.getElementById('aiAssessmentSection');
   if (aiAssessmentSection) aiAssessmentSection.style.display = 'block';
-  const allCaseCards = document.querySelectorAll('.case-card');
-  allCaseCards.forEach(card => (card as HTMLElement).style.display = 'none');
-  const activeCard = document.getElementById(`caseCard-${caseType}`);
-  if (activeCard) activeCard.style.display = 'block';
-  if (assessmentCaseChip) {
-    assessmentCaseChip.textContent = caseType;
-    assessmentCaseChip.className = `case-chip ${caseType.toLowerCase()}`;
-  }
+  
   if (assessmentMeta) assessmentMeta.textContent = `Based on AI Analysis • ${new Date().toLocaleDateString()}`;
+  
+  // Update eligibility banner
   eligibilityCard.style.display = 'block';
   treatmentDetails.style.display = 'grid';
   eligibilityBadge.className = `badge ${plan.eligibility}`;
   eligibilityStatus.textContent = t(plan.eligibility + 'Title');
   eligibilityMessage.textContent = plan.reasons[0] || t('defaultMessage');
+  
+  // Update metrics
   treatmentLength.textContent = `${plan.treatmentLengthMonths} ${t('months')}`;
   stageCount.textContent = `${plan.stageCount} ${t('aligners')}`;
-  wearType.textContent = plan.wearType;
+  wearType.textContent = t(plan.wearType);
+  
+  // Update corrections tags
   correctionsList.innerHTML = '';
   for (const [key, value] of Object.entries(plan.corrections)) {
-    const tag = document.createElement('span');
-    tag.className = `correction-tag ${value ? '' : 'disabled'}`;
-    tag.textContent = key; correctionsList.appendChild(tag);
+    if (value) { // Only show active corrections
+      const tag = document.createElement('span');
+      tag.className = 'correction-tag';
+      tag.textContent = t(key); // Use t() to translate the key
+      correctionsList.appendChild(tag);
+    }
   }
+  
+  // Update clinical reasons list
   treatmentReasons.innerHTML = '';
   plan.reasons.forEach(reason => {
-    const li = document.createElement('li'); li.textContent = reason; treatmentReasons.appendChild(li);
+    const li = document.createElement('li'); 
+    li.textContent = reason; 
+    treatmentReasons.appendChild(li);
   });
 }
 
@@ -1360,7 +1542,50 @@ function updateStageUI() {
   thumbBtns.forEach((btn, idx) => {
     if (btn) { btn.classList.toggle('active', idx === activeStageIndex); btn.classList.toggle('captured', stageCaptures[idx] !== null); }
   });
-  if (stageCompleteBtn) stageCompleteBtn.style.display = stageCaptures.every(img => img !== null) ? 'block' : 'none';
+  
+  const allCaptured = stageCaptures.every(img => img !== null);
+  
+  if (allCaptured) {
+    // Show form, hide camera
+    const captureCard = document.querySelector('.capture4-card') as HTMLElement;
+    if (captureCard) captureCard.style.display = 'none';
+    if (stageForm) stageForm.style.display = 'block';
+    if (captureHint) captureHint.style.display = 'none';
+    if (stageCamera) (stageCamera as any).stop();
+  } else {
+    // Standard camera view
+    const captureCard = document.querySelector('.capture4-card') as HTMLElement;
+    if (captureCard) captureCard.style.display = 'block';
+    if (stageForm) stageForm.style.display = 'none';
+    if (captureHint) captureHint.style.display = 'block';
+  }
+}
+
+if (finalSubmitBtn) {
+  finalSubmitBtn.addEventListener('click', async () => {
+    const name = userNameInput.value.trim();
+    const email = userEmailInput.value.trim();
+    const phone = userPhoneInput.value.trim();
+
+    if (!name || !email || !phone) {
+      alert(currentLanguage === 'en' ? 'Please fill in all fields.' : '請填寫所有欄位。');
+      return;
+    }
+
+    finalSubmitBtn.disabled = true;
+    finalSubmitBtn.textContent = currentLanguage === 'en' ? 'Submitting...' : '正在提交...';
+
+    // Simulate submission
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    console.log('[DEBUG] Form submitted with:', { name, email, phone, photosCount: stageCaptures.length });
+    
+    alert(currentLanguage === 'en' ? 'Interest submitted! Our specialists will contact you shortly.' : '意向已提交！我們的專員將很快與您聯絡。');
+    
+    // Reset and go back to plan or landing
+    const switchTabFn = (window as any).switchTab; 
+    if (switchTabFn) switchTabFn('plan');
+  });
 }
 
 if (stageCaptureBtn) {
@@ -1403,6 +1628,19 @@ function downloadResult() {
 async function retry() {
   if (stageCamera) (stageCamera as any).stop(); stageCamera = null;
   pendingDentalAnalysis = null; stageCaptures = [null, null, null, null]; activeStageIndex = 0;
+  
+  // Reset form and camera card visibility
+  const captureCard = document.querySelector('.capture4-card') as HTMLElement;
+  if (captureCard) captureCard.style.display = 'block';
+  if (stageForm) stageForm.style.display = 'none';
+  if (userNameInput) userNameInput.value = '';
+  if (userEmailInput) userEmailInput.value = '';
+  if (userPhoneInput) userPhoneInput.value = '';
+  if (finalSubmitBtn) {
+    finalSubmitBtn.disabled = false;
+    finalSubmitBtn.textContent = currentLanguage === 'en' ? 'Submit My Scans' : '提交我的掃描';
+  }
+
   thumbImgs.forEach(img => { if (img) { img.src = ''; img.style.display = 'none'; } });
   if (stageCompleteBtn) stageCompleteBtn.style.display = 'none';
   resultsSection.style.display = 'none';

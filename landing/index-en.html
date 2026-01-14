@@ -11,7 +11,9 @@
     <nav class="fixed-top">
         <div class="navbar-container">
             <div class="logo-container">
-                <a href="#" class="logo">be@me</a>
+                <a href="#" class="logo">
+                    <img src="./pics/beamelogogreen.png" alt="Beame Logo">
+                </a>
             </div>
             <div class="nav-right">
                 <div class="language-switcher">
@@ -27,124 +29,435 @@
         <div class="top">
             <div class="computer">
                 <div class="pc-view">
-                    <img class="computer_img_top" src="./English Beame banner.png" alt="Beame">
+                    <img class="computer_img_top" src="./pics/bannerpicfinal.jpeg" alt="Beame">
                 </div>
                 <div class="mobile-view">
-                    <img class="move_img" src="./mobile english banner.png" alt="Beame">
+                    <img class="move_img" src="./pics/bannerpicmobile.jpg" alt="Beame">
                 </div>
                 
-                <div class="computer_div">
-                    <button onclick="startAnalysis()" class="deta_button_3">Start AI Analysis Now</button>
+                <div class="banner-overlay">
+                    <div class="banner-content">
+                        <img src="./pics/beamelogowhite.png" alt="Beame Logo" class="banner-logo">
+                        <button onclick="startAnalysis()" class="deta_button_3">Start AI Analysis</button>
+                        <p class="banner-subtext">Get your preliminary AI dental assessment report in just 30 seconds</p>
+                    </div>
+                </div>
+
+                <div class="scroll-arrow" id="scroll-arrow">
+                    <div class="arrow-icon"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- The Journey to Your Perfect Smile -->
+        <div class="section-soft-green">
+            <div class="container-xl">
+                <div class="advantage_div">
+                    <h2 class="process_h2">Your Aligner Journey</h2>
+                    <h3 class="process_h3">5 Steps to Your First Aligner</h3>
+                    <div class="pc-view row advantage_div_2 justify-content-center">
+                        <div class="col-md-2">
+                            <img class="advantage_img advantage_img4" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_14.png" alt="Beame Step 1">
+                            <h3 class="advantage_h3">Online Booking</h3>
+                            <p class="advantage_p">Book via web or WhatsApp<br />for in-store consultation</p>
+                        </div>
+                        <div class="col-md-2">
+                            <img class="advantage_img advantage_img4" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_10.png" alt="Visit Store">
+                            <h3 class="advantage_h3">Visit Our Store</h3>
+                            <p class="advantage_p">Consultants answer<br />questions and provide quotes</p>
+                        </div>
+                        <div class="col-md-2">
+                            <img class="advantage_img advantage_img4" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_11.png" alt="3D Scan">
+                            <h3 class="advantage_h3">In-clinic 3D Scan</h3>
+                            <p class="advantage_p">Dentists confirm dental<br />conditions directly</p>
+                        </div>
+                        <div class="col-md-2">
+                            <img class="advantage_img advantage_img4" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_12.png" alt="Confirm Plan">
+                            <h3 class="advantage_h3">Confirm Plan</h3>
+                            <p class="advantage_p">Wait for your custom<br />aligners to be produced</p>
+                        </div>
+                        <div class="col-md-2">
+                            <img class="advantage_img advantage_img4" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_13.png" alt="Collect Aligners">
+                            <h3 class="advantage_h3">Collect Aligners</h3>
+                            <p class="advantage_p">Pick up at the<br />scheduled store</p>
+                        </div>
+                    </div>
+                <div class="mobile-view advantage_div_3">
+                    <div class="advantage_width">
+                        <div class="col-lg-2"><img class="advantage_img advantage_margin" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_14.png" alt=""></div>
+                        <div class="col-lg-2"><img class="advantage_img advantage_margin" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_10.png" alt=""></div>
+                        <div class="col-lg-2"><img class="advantage_img advantage_margin" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_11.png" alt=""></div>
+                        <div class="col-lg-2"><img class="advantage_img advantage_margin" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_12.png" alt=""></div>
+                        <div class="col-lg-2"><img class="advantage_img advantage_margin" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_13.png" alt=""></div>
+                    </div>
+                    <div>
+                        <div class="col-lg-2 step"><h3 class="advantage_h3">Book Consultation</h3><p class="advantage_p">Online or WhatsApp</p><p class="advantage_p3">↓</p></div>
+                        <div class="col-lg-2 step"><h3 class="advantage_h3">Visit Store</h3><p class="advantage_p">1-on-1 consultation</p><p class="advantage_p3">↓</p></div>
+                        <div class="col-lg-2 step"><h3 class="advantage_h3">Clinic 3D Scan</h3><p class="advantage_p">Confirmed by dentist</p><p class="advantage_p3">↓</p></div>
+                        <div class="col-lg-2 step"><h3 class="advantage_h3">Confirm Plan</h3><p class="advantage_p">Wait for production</p><p class="advantage_p3">↓</p></div>
+                        <div class="col-lg-2 step"><h3 class="advantage_h3">Collect Aligners</h3><p class="advantage_p">Pick up at store</p></div>
+                    </div>
+                </div>
+                <button onclick="bookConsultation()" class="scheme_button">Book Consultation Now</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-xl section-with-pattern">
+        <div class="feedback-contrast">
+            <h2 class="feedback-h2 pc-view"><img src="./pics/beamelogogreen.png" alt="Beame" class="inline-logo"> Supporting Your Smile Across HK Stores</h2>
+                <h2 class="feedback-h2 mobile-view"><img src="./pics/beamelogogreen.png" alt="Beame" class="inline-logo"> Dental Brand<br />Supporting Your Smile</h2>
+                
+                <div class="feedback">
+                    <div class="feedback-carousel-container">
+                        <div class="feedback-track" id="feedback-track">
+                            <!-- Card 1 -->
+                            <div class="feedback-slide">
+                                <div class="feedback-div">
+                                    <div class="feedback-left">
+                                        <h3 class="feedback-name">Oral Assessment <br /><span class="feedback-name-span">Free Scan After Quiz</span></h3>
+                                        <p class="feedback-time">Our team suggests the best method based on your quiz. Complete the assessment to lock in $6,705 discount and free scan.</p>
+                                        <button class="feedback-button" onclick="startAnalysis()">Start AI Assessment</button>
+                                    </div>
+                                    <div class="feedback-right">
+                                        <img class="feedback-icon1" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/mybeameNewHK-68.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Card 2 -->
+                            <div class="feedback-slide">
+                                <div class="feedback-div">
+                                    <div class="feedback-left">
+                                        <h3 class="feedback-name">Experience Room <br /><span class="feedback-name-span">Free 3D Scan</span></h3>
+                                        <p class="feedback-time">Understand your dental status, accurately model your teeth, and have a dentist create a straightening plan.</p>
+                                        <button class="feedback-button" onclick="bookConsultation()">Learn More</button>
+                                    </div>
+                                    <div class="feedback-right">
+                                        <img class="feedback-icon1" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/experience-room-18.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Card 3 -->
+                            <div class="feedback-slide">
+                                <div class="feedback-div">
+                                    <div class="feedback-left">
+                                        <h3 class="feedback-name">Clear Aligners <br />Student Discount <span style="color: #00e467">$500 OFF</span></h3>
+                                        <p class="feedback-time">Attend a consultation and show your valid student ID to get an extra $500 off your treatment.</p>
+                                        <button class="feedback-button" onclick="bookConsultation()">Book Now</button>
+                                    </div>
+                                    <div class="feedback-right">
+                                        <img class="feedback-icon1" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/mybeameNewHK-7.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Card 4 -->
+                            <div class="feedback-slide">
+                                <div class="feedback-div">
+                                    <div class="feedback-left">
+                                        <h3 class="feedback-name"><img src="./pics/beamelogogreen.png" alt="Beame" class="inline-logo"> Care+ <br />Lifetime Smile Guarantee</h3>
+                                        <p class="feedback-time"><img src="./pics/beamelogogreen.png" alt="Beame" class="inline-logo"> customers who follow retainer instructions get free treatment restarts if relapse occurs.</p>
+                                        <button class="feedback-button" onclick="bookConsultation()">Book Now</button>
+                                    </div>
+                                    <div class="feedback-right">
+                                        <img class="feedback-icon1" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/mybeameNewHK-8.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="carousel-dots" id="carousel-dots">
+                            <div class="dot active"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="container-xl">
-            <h2 class="service3_h2">Choose Your Smile Journey</h2>
-
-            <div class="advisory">
-                <!-- Card 1 -->
-                <div class="box" onclick="bookConsultation()">
-                    <div class="box-image" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/mybeameNewHK-70.png')"></div>
-                    <div class="box-content">
-                        <h2>In-Store Consultation</h2>
-                        <h4>Face-to-Face Support</h4>
-                        <p>Book a 3D scan and meet our dental experts for a personalized treatment plan.</p>
-                        <button class="box_btn">Book Now</button>
+            <div class="free">
+                <h2 class="free-title">HK Dentist Supported Aligners</h2>
+                <p class="free-tags">New Experience Room Free 3D Scan</p>
+                <div class="free-div">Managed by HK professional dentist teams. Book directly for 3D scans at be@me Experience Rooms across HK.</div>
+                <div class="free-container">
+                    <div class="free-content">
+                        <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/experience-room-3.png" alt="">
+                        <h3>High Precision</h3>
+                        <p>Advanced digital scanning for accurate tooth and oral structures.</p>
+                    </div>
+                    <div class="free-content">
+                        <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/experience-room-4.png" alt="">
+                        <h3>Professional Evaluation</h3>
+                        <p>Managed by dentists. Dentists evaluate tooth conditions and provide suggestions.</p>
+                    </div>
+                    <div class="free-content">
+                        <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/experience-room-6.png" alt="">
+                        <h3>Direct Q&A</h3>
+                        <p>Experience Rooms connect you with experts. 1-on-1 consultations for be@me details.</p>
+                    </div>
+                    <div class="free-content">
+                        <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/experience-room-5.png" alt="">
+                        <h3>Completely Free</h3>
+                        <p>Scanning service is free with no hidden fees. No charge even if you don't proceed.</p>
                     </div>
                 </div>
-
-                <!-- Card 2 -->
-                <div class="box" onclick="startAnalysis()">
-                    <div class="box-image" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/mybeameNewHK-69.png')"></div>
-                    <div class="box-content">
-                        <h2>AI Instant Evaluation</h2>
-                        <h4>Ready in 5 Minutes</h4>
-                        <p>Start from home. Our AI analyzes your smile and shows your future transformation.</p>
-                        <button class="box_btn">Start Now</button>
-                    </div>
+                <div class="waist">
+                    <button class="waist_button" onclick="bookConsultation()">Book Experience Room</button>
                 </div>
             </div>
         </div>
 
-        <!-- How It Works Section (From aligner.vue) -->
-        <div class="container-xl how-it-works">
-            <h2 class="process_h2">The Transformation Journey</h2>
-            <h3 class="process_h3_2">5 Steps to Your New Smile</h3>
-            <div class="steps-grid">
-                <div class="step-card">
-                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_14.png" alt="Step 1">
-                    <h3>1. Online Booking</h3>
-                    <p>Book your consultation via web or WhatsApp customer service.</p>
-                </div>
-                <div class="step-card">
-                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_10.png" alt="Step 2">
-                    <h3>2. Visit Clinic</h3>
-                    <p>Meet our smile consultants for expert advice and detailed pricing.</p>
-                </div>
-                <div class="step-card">
-                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_11.png" alt="Step 3">
-                    <h3>3. 3D Scanning</h3>
-                    <p>Professional dentists will perform a detailed scan of your teeth.</p>
-                </div>
-                <div class="step-card">
-                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_12.png" alt="Step 4">
-                    <h3>4. Plan Design</h3>
-                    <p>Design your custom treatment plan and start the production.</p>
-                </div>
-                <div class="step-card">
-                    <img src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_13.png" alt="Step 5">
-                    <h3>5. Collect Braces</h3>
-                    <p>Collect your first set of invisible aligners at the chosen store.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- About Beame Section (From aligner.vue) -->
-        <div class="container-xl layout">
-            <h2 class="process_h2">
-                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
-                Why Choose be@me
+        <div class="container-xl">
+            <h2 class="process_h2_1">
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">4 Reasons to Choose Beame
                 <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
             </h2>
-            <h3 class="process_h3_2">Providing professional, transparent, and cost-effective treatment</h3>
-            
-            <div class="knowledge row">
-                <div class="BraceTeeth" style="background-image: linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.8)), url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_21.png')">
-                    <h2 class="BraceTeeth_h2">Professional Support</h2>
-                    <ul class="why-list">
-                        <li><strong>Exclusive $0 Check Fee:</strong> Free in-store consultation when you book online.</li>
-                        <li><strong>Flexible Follow-ups:</strong> Choose follow-up frequency based on your needs.</li>
-                        <li><strong>Expert Medical Team:</strong> Guided by experienced orthodontists for the best results.</li>
-                    </ul>
-                    <button class="BraceTeeth_button" onclick="startAnalysis()">Start AI Analysis Now</button>
+            <h3 class="process_h3_1">TUV nord Certified Clear Aligners</h3>
+            <div class="promotion">
+                <div class="promotion_left">
+                    <div class="promotion_step">
+                        <div class="promotion_left_div"><img class="promotion_left_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_34.png" alt=""></div>
+                        <div><h3 class="promotion_left_h3">24-Hour Comfort</h3><p class="promotion_left_p">Fits perfectly along gum edges</p></div>
+                    </div>
+                    <div class="promotion_step">
+                        <div class="promotion_left_div"><img class="promotion_left_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_35.png" alt=""></div>
+                        <div><h3 class="promotion_left_h3">Stain Resistant</h3><p class="promotion_left_p">30% better resistance to stains</p></div>
+                    </div>
+                    <div class="promotion_step">
+                        <div class="promotion_left_div"><img class="promotion_left_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_36.png" alt=""></div>
+                        <div><h3 class="promotion_left_h3">Durability</h3><p class="promotion_left_p">Constant and precise aligner force</p></div>
+                    </div>
+                    <div class="promotion_step">
+                        <div class="promotion_left_div"><img class="promotion_left_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_37.png" alt=""></div>
+                        <div><h3 class="promotion_left_h3">Secure Usage</h3><p class="promotion_left_p">30% improved tear resistance</p></div>
+                    </div>
                 </div>
-                <div class="BraceTeeth_2" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/children_9.png')">
-                    <h2 class="BraceTeeth_h2_2">More Than Just Braces</h2>
-                    <p class="BraceTeeth_p_2">
-                        We care about your long-term dental health. Through the Beame Academy, access professional tips written by experts.
-                        Our flagship clinics provide city-wide support to make beauty simple.
-                    </p>
-                    <button class="BraceTeeth_button" onclick="window.open('https://smile.mybeame.com/')">Visit Academy</button>
+                <div class="promotion_div">
+                    <img class="promotion_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_33.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                </div>
+            </div>
+        </div>
+
+        <div class="container-xl advantage_content">
+            <h2 class="advantage_h2">Beame Effectively Improves These Dental Issues</h2>
+            <div class="row advantage">
+                <div class="col-md-4">
+                    <img class="trim_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_38.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                    <p class="advantage_p2">Crossbite</p>
+                </div>
+                <div class="col-md-4">
+                    <img class="trim_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_39.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                    <p class="advantage_p2">Protruding Teeth</p>
+                </div>
+                <div class="col-md-4">
+                    <img class="trim_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_40.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                    <p class="advantage_p2">Crowding</p>
+                </div>
+            </div>
+            <div class="row advantage">
+                <div class="col-md-4">
+                    <img class="trim_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_41.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                    <p class="advantage_p2">Crooked Teeth</p>
+                </div>
+                <div class="col-md-4">
+                    <img class="trim_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_42.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                    <p class="advantage_p2">Underbite</p>
+                </div>
+                <div class="col-md-4">
+                    <img class="trim_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_43.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                    <p class="advantage_p2">Gap Teeth</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-xl customers">
+            <h2 class="advantage_h2">
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">Real Beame Success Stories
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
+            </h2>
+            <div class="advantage_2">
+                <div class="compare_2">
+                    <div class="compare_div_left"><img class="customers_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/JPN_international_6.png?x-oss-process=image/resize,w_800/format,webp" alt=""></div>
+                    <div class="compare_div_right"><img class="customers_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/JPN_international_7.png?x-oss-process=image/resize,w_800/format,webp" alt=""></div>
+                </div>
+                <div class="compare_2">
+                    <div class="compare_div_left"><img class="customers_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/JPN_international_8.png?x-oss-process=image/resize,w_800/format,webp" alt=""></div>
+                    <div class="compare_div_right"><img class="customers_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/JPN_international_9.png?x-oss-process=image/resize,w_800/format,webp" alt=""></div>
+                </div>
+                <div class="compare_2">
+                    <div class="compare_div_left"><img class="customers_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/JPN_international_10.png?x-oss-process=image/resize,w_800/format,webp" alt=""></div>
+                    <div class="compare_div_right"><img class="customers_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/JPN_international_11.png?x-oss-process=image/resize,w_800/format,webp" alt=""></div>
+                </div>
+            </div>
+            <div class="waist">
+                <button onclick="bookConsultation()" class="waist_button">Book Consultation Now</button>
+            </div>
+        </div>
+
+        <div class="container-xl scheme">
+            <h2 class="Price_h2_3">
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">Two Clear Aligner Pricing Plans
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
+            </h2>
+            <h3 class="Price_h3_2">Flexible Solutions for Your Smile</h3>
+            <div class="slide">
+                <table border="1" bordercolor="#000" width="100%">
+                    <tbody>
+                        <tr>
+                            <th class="gradient1"></th>
+                            <th class="gradient2"><img src="./pics/beamelogowhite.png" alt="Beame" class="inline-logo"> <br />Lite</th>
+                            <th class="gradient3"><img src="./pics/beamelogowhite.png" alt="Beame" class="inline-logo"> <br />Clear</th>
+                            <th class="gradient4"><img src="./pics/beamelogowhite.png" alt="Beame" class="inline-logo"> <br />PRO</th>
+                            <th class="gradient5"><img src="./pics/beamelogowhite.png" alt="Beame" class="inline-logo"> <br />Elite</th>
+                        </tr>
+                        <tr><td class="table_td">Suitable Teeth</td><td class="Pricebackground1">Minor correction<br />Single side</td><td class="Pricebackground2">Front teeth fix</td><td class="Pricebackground3">Full set correction</td><td class="Pricebackground4">Full set correction</td></tr>
+                        <tr><td class="table_td">Online Offer</td><td class="Pricebackground1">$ 12,980</td><td class="Pricebackground2">$ 14,980</td><td class="Pricebackground3">$ 28,800</td><td class="Pricebackground4">$ 35,000</td></tr>
+                        <tr><td class="table_td">Original Price</td><td class="Pricebackground1">$ 14,800</td><td class="Pricebackground2">$ 16,800</td><td class="Pricebackground3">$ 30,620</td><td class="Pricebackground4">$ 36,820</td></tr>
+                        <tr><td class="table_td">Aligners</td><td class="Pricebackground1">10 or less</td><td class="Pricebackground2">20 or less</td><td class="Pricebackground3">40 or less</td><td class="Pricebackground4">40+</td></tr>
+                        <tr><td class="table_td">Dentist Led</td><td class="Pricebackground1">✓</td><td class="Pricebackground2">✓</td><td class="Pricebackground3">✓</td><td class="Pricebackground4">✓</td></tr>
+                        <tr><td class="table_td">X-Ray</td><td class="Pricebackground1">\</td><td class="Pricebackground2">As needed</td><td class="Pricebackground3">Included</td><td class="Pricebackground4">Included</td></tr>
+                        <tr><td class="table_td">Attachments</td><td class="Pricebackground1">\</td><td class="Pricebackground2">\</td><td class="Pricebackground3">Included</td><td class="Pricebackground4">HK/SZ</td></tr>
+                        <tr><td class="table_td">IPR</td><td class="Pricebackground1">\</td><td class="Pricebackground2">\</td><td class="Pricebackground3">Included</td><td class="Pricebackground4">HK/SZ</td></tr>
+                        <tr><td class="table_td">Extractions</td><td class="Pricebackground1">\</td><td class="Pricebackground2">\</td><td class="Pricebackground3">As needed</td><td class="Pricebackground4">As needed</td></tr>
+                        <tr><td class="table_td">Whitening Kit</td><td class="Pricebackground1">✓</td><td class="Pricebackground2">✓</td><td class="Pricebackground3">✓</td><td class="Pricebackground4">✓</td></tr>
+                        <tr><td class="table_td">Scaling Care</td><td class="Pricebackground1"></td><td class="Pricebackground2">✓</td><td class="Pricebackground3">✓</td><td class="Pricebackground4">✓</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <button onclick="bookConsultation()" class="scheme_button">Book Consultation Now</button>
+        </div>
+
+        <div class="container-xl video">
+            <h2 class="video_h2">
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">Straighten Teeth Discreetly
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
+            </h2>
+            <div class="video_div">
+                <iframe width="90%" height="100%" src="https://www.youtube.com/embed/U6HRwoE-fnQ" frameborder="0" allowfullscreen></iframe>
+            </div>
+        </div>
+
+        <div class="container-xl Consultant">
+            <h2 class="process_h2_2">
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">Online Booking for Consultation
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
+            </h2>
+            <h3 class="process_h3_2">1-on-1 Smile Consultant Session</h3>
+            <div class="row Consultant_div">
+                <div class="col-md-4">
+                    <img class="Consultant_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_44.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                    <h3 class="Consultant_h3">Initial Assessment</h3>
+                </div>
+                <div class="col-md-4">
+                    <img class="Consultant_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_45.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                    <h3 class="Consultant_h3">Get All Answers</h3>
+                </div>
+                <div class="col-md-4">
+                    <img class="Consultant_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_46.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                    <h3 class="Consultant_h3">Completely Free</h3>
+                </div>
+            </div>
+            <button onclick="bookConsultation()" class="scheme_button">Book Consultation Now</button>
+        </div>
+
+        <div style="position: relative" class="CaseStudy_div">
+            <div class="CaseStudy">
+                <h2 class="Price_h2_2"><span style="color: #25ce7b;">Dentist-Led</span> Case Management</h2>
+                <h3 class="Price_h3_1">Flexible Meeting Options</h3>
+                <h3 class="Price_h3">Professional Assessment</h3>
+                <p class="Price_p">Dentists handle complex issues like attachments, extractions, and IPR before you start.</p>
+                <h3 class="Price_h3">No Fixed Visit Limits</h3>
+                <p class="Price_p">From 0 to unlimited. Adjust visits based on your budget and needs.</p>
+                <h3 class="Price_h3">More Dentist Choices</h3>
+                <p class="Price_p">Choose from HK partner dentists or our flagship Shenzhen clinics.</p>
+            </div>
+            <img class="trim_img pc-view" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_47.png?x-oss-process=image/resize,w_1500/format,webp" alt="">
+            <img class="trim_img mobile-view" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_50.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+        </div>
+
+        <div style="position: relative" class="pc-view">
+            <div class="Heavyhoop">
+                <h3 class="Heavyhoop_h3">Beame Exclusive Offer</h3>
+                <h2 class="Heavyhoop_h2">Beame Care+</h2>
+                <h2 class="Heavyhoop_h2_2">Lifetime Smile Guarantee</h2>
+                <p class="Heavyhoop_p">Wear retainers as instructed, and if any<br />relapse occurs, we'll restart your<br />straightening for free.</p>
+            </div>
+            <img class="trim_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_48.png?x-oss-process=image/resize,w_1500/format,webp" alt="">
+        </div>
+
+        <div class="gift">
+            <div class="container-xl">
+                <div class="gift_div">
+                    <div class="gift_div_2">
+                        <h2 class="process_h2_4">Upgrade to Beame PRO <br />Free Whitening Kit</h2>
+                        <h3 class="process_h3_4">3 Practical Beame Tools</h3>
+                        <p class="gift_p">be@meSonic™ Electric Toothbrush ($2355/set)</p>
+                        <p class="gift_p">be@me™ Smart Whitening Kit ($1150/set)</p>
+                        <p class="gift_p">be@me™ V34 Color Corrector ($880/set)</p>
+                    </div>
+                    <img class="gift_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/aligner_49.png?x-oss-process=image/resize,w_800/format,webp" alt="">
+                </div>
+            </div>
+        </div>
+
+        <div class="evaluate container-xl pc-view">
+            <h2 class="evaluate_h2">
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">Media Recommended Dental Services
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
+            </h2>
+            <h3 class="evaluate_h3">1200+ Reviews 4.8 Rating</h3>
+            <div class="evaluate_div">
+                <div class="evaluate_box"><img class="evaluate_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/hospital_30.png?x-oss-process=image/resize,w_800/format,webp" alt=""></div>
+                <div class="evaluate_box"><img class="evaluate_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/hospital_31.webp" alt=""></div>
+                <div class="evaluate_box"><img class="evaluate_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/hospital_32.png?x-oss-process=image/resize,w_800/format,webp" alt=""></div>
+                <div class="evaluate_box"><img class="evaluate_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/hospital_33.png?x-oss-process=image/resize,w_800/format,webp" alt=""></div>
+                <div class="evaluate_box"><img class="evaluate_img" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/hospital_34.webp" alt=""></div>
+            </div>
+            <button onclick="bookConsultation()" class="scheme_button">Book Consultation Now</button>
+        </div>
+
+        <div class="container-xl" style="padding: 80px 20px;">
+            <h2 class="process_h2">
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">More Than Just Aligners
+                <img class="star" src="https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/sz-dental_19.png" alt="">
+            </h2>
+            <h3 class="process_h3_2">Caring for Your Dental Health Beyond Braces</h3>
+            <div class="knowledge row justify-content-center">
+                <div class="BraceTeeth col-lg-5" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/JPN_international_1.png')">
+                    <div class="card-content">
+                        <h2 class="BraceTeeth_h2">Beame Academy</h2>
+                        <p class="BraceTeeth_p">Dental care tips for your daily routine.</p>
+                        <button class="BraceTeeth_button" onclick="window.open('https://smile.mybeame.com/')">Read Articles→</button>
+                    </div>
+                </div>
+                <div class="BraceTeeth_2 col-lg-5" style="background-image: url('https://beame.oss-cn-hongkong.aliyuncs.com/mobilePicture/JPN_international_2.png')">
+                    <div class="card-content">
+                        <h2 class="BraceTeeth_h2_2">Flagship Clinics</h2>
+                        <p class="BraceTeeth_p_2">Free CT dental checks to detect issues early. Professional services for the HK community.</p>
+                        <button class="BraceTeeth_button" onclick="window.open('/promotion')">View Offers→</button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="Bottom_Kindly container-xl">
-            <p>1. AI analysis is for reference only. Results may vary by individual.</p>
-            <p>2. All photos are processed locally to ensure your privacy.</p>
-            <p>3. We recommend booking a professional consultation after your AI scan.</p>
+            <p>1. Please note that Beame HK stores do not provide medical services. Medical services and analysis are provided by professional dentists.</p>
+            <p>2. Beame HK stores provide consultation and experience. Professional 3D scanning and analysis take place in dental clinics.</p>
+            <p>3. Results vary based on individual conditions, adherence to instructions, and usage time.</p>
         </div>
 
         <div class="Bottom">
-            <p>&copy; 2026 be@me - Transform Your Smile</p>
+            <img src="./pics/beamelogowhite.png" alt="Beame Logo" class="footer-logo">
+            <p>Change Your Smile</p>
+            <span class="copyright">&copy; 2026 Beame. All rights reserved.</span>
         </div>
     </div>
 
     <script>
         // Set language on load
         localStorage.setItem('beame-language', 'en');
-
+        
         function switchLanguage(lang) {
             localStorage.setItem('beame-language', lang);
             if (lang === 'en') {
@@ -155,7 +468,42 @@
         }
 
         function startAnalysis() { window.location.href = '../analysis/index.html'; }
-        function bookConsultation() { alert('Booking coming soon! Try our AI Analysis first.'); }
+        function bookConsultation() { alert('Consultation booking is coming soon! Please try our AI analysis first.'); }
+
+        // Hide scroll arrow on scroll
+        window.addEventListener('scroll', function() {
+            const arrow = document.getElementById('scroll-arrow');
+            if (window.scrollY > 50) {
+                arrow.style.opacity = '0';
+            } else {
+                arrow.style.opacity = '1';
+            }
+        });
+
+        // Carousel Logic
+        let currentSlide = 0;
+        const track = document.getElementById('feedback-track');
+        const dots = document.getElementById('carousel-dots').children;
+        const totalSlides = 4;
+
+        function updateCarousel(index) {
+            currentSlide = index;
+            track.style.transform = `translateX(-${index * 100}%)`;
+            for (let i = 0; i < dots.length; i++) {
+                dots[i].classList.toggle('active', i === index);
+            }
+        }
+
+        // Auto slide
+        setInterval(() => {
+            currentSlide = (currentSlide + 1) % totalSlides;
+            updateCarousel(currentSlide);
+        }, 5000);
+
+        // Click on dots
+        for (let i = 0; i < dots.length; i++) {
+            dots[i].addEventListener('click', () => updateCarousel(i));
+        }
     </script>
 </body>
 </html>
