@@ -18,7 +18,7 @@ import type { ScanSession, DentalAnalysis, TreatmentPlan } from './types/dental'
 import { loadONNXModel, detectTeethONNX, isONNXReady } from './services/onnxInference';
 
 // CONFIGURATION: Set to true to save API credits during development
-const USE_FALLBACK_MODE = false; // Set to false to enable real AI generation
+const USE_FALLBACK_MODE = true; // Set to false to enable real AI generation
 
 // Initialize Gemini AI (unused in fallback mode)
 const _genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
@@ -39,7 +39,7 @@ let currentLanguage = localStorage.getItem('beame-language') || 'en';
 if (currentLanguage.includes('zh')) currentLanguage = 'zh';
 if (currentLanguage.includes('en')) currentLanguage = 'en';
 
-const translations: Record<string, Record<string, string>> = {
+  const translations: Record<string, Record<string, string>> = {
   en: {
     cameraStarting: 'Starting...',
     cameraActive: 'Active',
@@ -68,7 +68,31 @@ const translations: Record<string, Record<string, string>> = {
     midlineCorrection: 'Midline Correction',
     biteCorrection: 'Bite Correction',
     'All-Day': 'All-Day',
-    'Night': 'Night'
+    'Night': 'Night',
+    basedOnAiAnalysis: 'Based on AI Analysis',
+    frontOpenView: 'Front Open View',
+    lowerTeethView: 'Lower Teeth View',
+    upperTeethView: 'Upper Teeth View',
+    sideOpenView: 'Side Open View',
+    frontOpenInstruction: 'Open your mouth wide to clearly show all your front teeth. Align your mouth within the guides.',
+    lowerTeethInstruction: 'Open your mouth wide and tilt your head down slightly to show your lower teeth clearly.',
+    upperTeethInstruction: 'Open your mouth wide and tilt your head up slightly to show your upper teeth clearly.',
+    sideOpenInstruction: 'Turn your head significantly to the side and open your mouth wide to show your side teeth.',
+    centerMouth: 'Center mouth',
+    lookStraight: 'Look straight',
+    openWider: 'Open wider',
+    openMuchWider: 'Open much wider',
+    tiltHeadDown: 'Tilt head down',
+    tiltHeadUp: 'Tilt head up',
+    turnHeadTo70: 'Turn head to 70°',
+    ready: 'READY',
+    detectingLandmarks: 'Detecting facial landmarks...',
+    analyzingJaw: 'Analyzing jaw structure...',
+    mappingTeeth: 'Mapping tooth positions...',
+    calculatingAlignment: 'Calculating optimal alignment...',
+    generatingImage: 'Generating straightened image...',
+    applyingEnhancement: 'Applying Beame enhancement...',
+    finalizingResults: 'Finalizing results...'
   },
   zh: {
     cameraStarting: '正在啟動...',
@@ -98,7 +122,31 @@ const translations: Record<string, Record<string, string>> = {
     midlineCorrection: '中線矯正',
     biteCorrection: '咬合矯正',
     'All-Day': '全天佩戴',
-    'Night': '夜間佩戴'
+    'Night': '夜間佩戴',
+    basedOnAiAnalysis: '基於 AI 分析',
+    frontOpenView: '正面張口視圖',
+    lowerTeethView: '下排牙齒視圖',
+    upperTeethView: '上排牙齒視圖',
+    sideOpenView: '側面張口視圖',
+    frontOpenInstruction: '請將嘴巴張大，清楚展示您的所有前牙。請將您的嘴巴對準導引框。',
+    lowerTeethInstruction: '請將嘴巴張大並稍微向下傾斜頭部，清楚展示您的下排牙齒。',
+    upperTeethInstruction: '請將嘴巴張大並稍微向上傾斜頭部，清楚展示您的上排牙齒。',
+    sideOpenInstruction: '請將頭部明顯轉向側面並張大嘴巴，展示您的側面牙齒。',
+    centerMouth: '請對準中心',
+    lookStraight: '請直視前方',
+    openWider: '請張大嘴巴',
+    openMuchWider: '請將嘴巴張到最大',
+    tiltHeadDown: '請下傾頭部',
+    tiltHeadUp: '請上傾頭部',
+    turnHeadTo70: '請將頭部側轉70度',
+    ready: '準備就緒',
+    detectingLandmarks: '正在檢測面部特徵點...',
+    analyzingJaw: '正在分析顎骨結構...',
+    mappingTeeth: '正在繪製牙齒位置圖...',
+    calculatingAlignment: '正在計算最佳排列方案...',
+    generatingImage: '正在生成矯正後圖像...',
+    applyingEnhancement: '正在應用 Beame 增強效果...',
+    finalizingResults: '正在完成最終結果...'
   }
 };
 
@@ -265,28 +313,31 @@ interface CaptureStageConfig {
   instruction: string;
 }
 
-const CAPTURE_STAGES: CaptureStageConfig[] = [
-  {
-    id: 'front_smile',
-    title: 'Front Open View',
-    instruction: 'Open your mouth wide to clearly show all your front teeth. Align your mouth within the guides.'
-  },
-  {
-    id: 'lower_front',
-    title: 'Lower Teeth View',
-    instruction: 'Open your mouth wide and tilt your head down slightly to show your lower teeth clearly.'
-  },
-  {
-    id: 'upper_front',
-    title: 'Upper Teeth View',
-    instruction: 'Open your mouth wide and tilt your head up slightly to show your upper teeth clearly.'
-  },
-  {
-    id: 'side_bite',
-    title: 'Side Open View',
-    instruction: 'Turn your head significantly to the side and open your mouth wide to show your side teeth.'
-  }
-];
+// CAPTURE_STAGES is now dynamically generated to support translations
+function getCaptureStages(): CaptureStageConfig[] {
+  return [
+    {
+      id: 'front_smile',
+      title: t('frontOpenView'),
+      instruction: t('frontOpenInstruction')
+    },
+    {
+      id: 'lower_front',
+      title: t('lowerTeethView'),
+      instruction: t('lowerTeethInstruction')
+    },
+    {
+      id: 'upper_front',
+      title: t('upperTeethView'),
+      instruction: t('upperTeethInstruction')
+    },
+    {
+      id: 'side_bite',
+      title: t('sideOpenView'),
+      instruction: t('sideOpenInstruction')
+    }
+  ];
+}
 
 let stageCamera: Camera | null = null;
 let stageCaptures: Array<string | null> = [null, null, null, null];
@@ -834,10 +885,20 @@ async function getCameraStream(): Promise<MediaStream> {
   throw lastError;
 }
 
+// Track if we're already showing a camera error to prevent duplicate alerts
+let cameraErrorShown = false;
+
 // Start camera
 async function startCamera(): Promise<boolean> {
+  // Prevent starting camera multiple times
+  if (camera) {
+    console.log('[DEBUG] Camera already running, skipping startCamera()');
+    return true;
+  }
+  
   try {
     cameraStatus.textContent = t('cameraStarting');
+    cameraErrorShown = false; // Reset error flag
     
     const stream = await getCameraStream();
     
@@ -846,11 +907,18 @@ async function startCamera(): Promise<boolean> {
     webcamElement.srcObject = stream;
     
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Camera timeout')), 10000);
-      webcamElement.onloadedmetadata = () => {
+      const timeout = setTimeout(() => reject(new Error('Camera timeout')), 15000); // Increased to 15 seconds
+      
+      // Handle both loadedmetadata and loadeddata events for better compatibility
+      const onLoaded = () => {
         clearTimeout(timeout);
+        webcamElement.removeEventListener('loadedmetadata', onLoaded);
+        webcamElement.removeEventListener('loadeddata', onLoaded);
         webcamElement.play().then(resolve).catch(reject);
       };
+      
+      webcamElement.addEventListener('loadedmetadata', onLoaded);
+      webcamElement.addEventListener('loadeddata', onLoaded);
     });
 
     initializeFaceMesh();
@@ -913,10 +981,14 @@ async function startCamera(): Promise<boolean> {
       statusDot.style.boxShadow = '0 0 10px #ef4444';
     }
     
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    alert(currentLanguage === 'en' 
-      ? `Failed to access camera: ${errorMessage}. Please ensure permissions are granted and no other app is using the camera.` 
-      : `無法訪問攝像頭: ${errorMessage}。請確保已授予權限且無其他應用正在使用攝像頭。`);
+    // Only show alert once to prevent duplicate errors
+    if (!cameraErrorShown) {
+      cameraErrorShown = true;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(currentLanguage === 'en' 
+        ? `Failed to access camera: ${errorMessage}. Please ensure permissions are granted and no other app is using the camera.` 
+        : `無法訪問攝像頭: ${errorMessage}。請確保已授予權限且無其他應用正在使用攝像頭。`);
+    }
     
     return false;
   }
@@ -925,13 +997,13 @@ async function startCamera(): Promise<boolean> {
 // Simulate analysis steps
 async function simulateAnalysis(): Promise<void> {
   const steps: AnalysisStep[] = [
-    { step: 'Detecting facial landmarks...', duration: 800 },
-    { step: 'Analyzing jaw structure...', duration: 1000 },
-    { step: 'Mapping tooth positions...', duration: 900 },
-    { step: 'Calculating optimal alignment...', duration: 1100 },
-    { step: 'Generating straightened image...', duration: 1200 },
-    { step: 'Applying Beame enhancement...', duration: 800 },
-    { step: 'Finalizing results...', duration: 600 }
+    { step: t('detectingLandmarks'), duration: 800 },
+    { step: t('analyzingJaw'), duration: 1000 },
+    { step: t('mappingTeeth'), duration: 900 },
+    { step: t('calculatingAlignment'), duration: 1100 },
+    { step: t('generatingImage'), duration: 1200 },
+    { step: t('applyingEnhancement'), duration: 800 },
+    { step: t('finalizingResults'), duration: 600 }
   ];
 
   for (const { step, duration } of steps) {
@@ -948,7 +1020,7 @@ async function capturePhoto() {
     console.log('[DEBUG] Camera not running, attempting to start...');
     const started = await startCamera();
     if (!started) {
-      alert('Camera access is required to capture your photo. Please allow camera permissions and try again.');
+      // Error already shown by startCamera(), just return
       return;
     }
     const startOverlay = document.getElementById('cameraStartOverlay');
@@ -1011,6 +1083,19 @@ async function capturePhoto() {
     processingIndicator.style.display = 'none';
     straightenedImage.style.display = 'block';
     downloadBtn.style.display = 'inline-block';
+    
+    // CRITICAL: Only enable tabs AFTER the image is confirmed visible
+    const tab3dBtn = document.getElementById('3dTabBtn') as HTMLButtonElement;
+    const planTabBtn = document.getElementById('planTabBtn') as HTMLButtonElement;
+    
+    if (planTabBtn && pendingDentalAnalysis) { 
+      planTabBtn.disabled = false; 
+      planTabBtn.classList.remove('disabled'); 
+    }
+    if (tab3dBtn && pendingDentalAnalysis) { 
+      tab3dBtn.disabled = false; 
+      tab3dBtn.classList.remove('disabled'); 
+    }
   }
   
   isProcessing = false;
@@ -1122,37 +1207,40 @@ async function classifyDentalCase(imageDataUrl: string): Promise<'MILD' | 'MODER
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
     const prompt = `You are a world-class orthodontist reviewing a patient's photo for clear aligners. 
-Your goal is to be extremely realistic and conservative. DO NOT OVER-DIAGNOSE.
+Your goal is to be realistic and appropriately cautious. DO NOT UNDER-DIAGNOSE.
 
-Most people taking this test have relatively healthy teeth with minor cosmetic issues. 
+Most people taking this test have some degree of alignment issues that would benefit from treatment.
 
 CLASSIFICATION RULES (FOLLOW STRICTLY):
 
-1. **MILD** (DEFAULT - Choose this for ~70% of cases):
-   - Teeth look "fine" or "mostly straight".
-   - Minor crowding of just 1-2 teeth.
-   - Small gaps.
-   - If the teeth look like a normal smile with just slight imperfections, it IS MILD.
-   - DO NOT call this "Complex" just because one tooth is slightly crooked.
+1. **MILD** (ONLY for truly excellent teeth - ~10% of cases):
+   - Teeth are almost perfectly straight with only the tiniest cosmetic imperfections.
+   - Maybe ONE tooth with very minor rotation or spacing.
+   - If someone would say "your teeth are already great", it IS MILD.
+   - This category is for people who don't really NEED treatment but want perfection.
 
-2. **MODERATE** (Choose for ~20% of cases):
-   - Clear, visible crowding or spacing.
-   - Multiple teeth noticeably out of alignment.
-   - But the overall arch shape is still recognizable and normal.
+2. **MODERATE** (DEFAULT - Choose this for ~65% of cases):
+   - Visible crowding, spacing, or rotation affecting multiple teeth.
+   - Teeth that are noticeably misaligned but not extreme.
+   - The typical person seeking aligners falls into this category.
+   - If there's ANY noticeable crowding or gaps, choose MODERATE.
+   - Overall arch shape is recognizable.
 
-3. **COMPLEX** (RARE - Only for ~8% of cases):
-   - Severe overlap where teeth are behind one another.
-   - Massive gaps.
-   - Obvious, extreme misalignment that makes you go "Wow, that's a tough case."
-   - DO NOT USE THIS for standard crowding.
+3. **COMPLEX** (Choose for ~23% of cases):
+   - Severe overlap where teeth are significantly behind one another.
+   - Major gaps or severe crowding.
+   - Obvious, significant misalignment requiring extensive movement.
+   - Bite issues that are clearly visible.
+   - Multiple teeth severely out of position.
 
 4. **URGENT** (EXTREMELY RARE - ~2%):
    - Obvious medical issues (swelling, broken teeth, infection).
+   - Requires immediate dental attention.
 
 GUIDANCE:
-- If you are debating between MILD and MODERATE, pick MILD.
-- If you are debating between MODERATE and COMPLEX, pick MODERATE.
-- Most users have "just fine" teeth. If they look "just fine", respond MILD.
+- If you are debating between MILD and MODERATE, pick MODERATE.
+- If you are debating between MODERATE and COMPLEX, pick COMPLEX (be more willing to classify as complex).
+- Most users seeking this assessment have alignment issues worth treating. Default to MODERATE unless teeth are genuinely near-perfect (MILD) or severely misaligned (COMPLEX).
 
 Respond with ONLY ONE WORD: MILD, MODERATE, COMPLEX, or URGENT`;
     const result = await model.generateContent([prompt, { inlineData: { mimeType: 'image/png', data: base64Data } }]);
@@ -1231,18 +1319,8 @@ async function performDentalAnalysis(cleanImageUrl: string, originalImageUrl: st
     analysisStep.textContent = t('preparingPlan');
     pendingDentalAnalysis = dentalAnalysis;
     
-    // TAB ACTIVATION - Wait until everything is done
-    const tab3dBtn = document.getElementById('3dTabBtn') as HTMLButtonElement;
-    const planTabBtn = document.getElementById('planTabBtn') as HTMLButtonElement;
-    
-    if (planTabBtn) { 
-      planTabBtn.disabled = false; 
-      planTabBtn.classList.remove('disabled'); 
-    }
-    if (tab3dBtn) { 
-      tab3dBtn.disabled = false; 
-      tab3dBtn.classList.remove('disabled'); 
-    }
+    // NOTE: Tab activation moved to capturePhoto() after straightenedImage is confirmed visible
+    // This ensures users can't click tabs before the AI result is shown
     
     updateProgressSteps(2);
   } catch (error) { 
@@ -1314,7 +1392,7 @@ function displayTreatmentPlan(plan: TreatmentPlan): void {
   const aiAssessmentSection = document.getElementById('aiAssessmentSection');
   if (aiAssessmentSection) aiAssessmentSection.style.display = 'block';
   
-  if (assessmentMeta) assessmentMeta.textContent = `Based on AI Analysis • ${new Date().toLocaleDateString()}`;
+  if (assessmentMeta) assessmentMeta.textContent = `${t('basedOnAiAnalysis')} • ${new Date().toLocaleDateString()}`;
   
   // Update eligibility banner
   eligibilityCard.style.display = 'block';
@@ -1407,7 +1485,8 @@ function onStageFaceMeshResults(results: any) {
   canvasCtx.clearRect(0, 0, stageOverlay.width, stageOverlay.height);
   canvasCtx.drawImage(results.image, 0, 0, stageOverlay.width, stageOverlay.height);
 
-  const currentStage = CAPTURE_STAGES[activeStageIndex];
+  const stages = getCaptureStages();
+  const currentStage = stages[activeStageIndex];
   if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
     const landmarks = results.multiFaceLandmarks[0];
     stageLandmarks = landmarks;
@@ -1457,45 +1536,45 @@ function validateStageAlignmentVerbose(stageId: CaptureStageId, landmarks: any[]
   const verticalOffset = Math.abs(mouthCenterY - targetCenterY)/height;
   
   if (horizontalOffset > 0.3 || verticalOffset > 0.35) {
-    return { isReady: false, feedback: currentLanguage === 'en' ? 'Center mouth' : '請對準中心' };
+    return { isReady: false, feedback: t('centerMouth') };
   }
   
   // 2. Stage-specific requirements
   switch (stageId) {
     case 'front_smile':
       // Must be looking straight
-      if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: currentLanguage === 'en' ? 'Look straight' : '請直視前方' };
+      if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: t('lookStraight') };
       // Mouth must be open enough to show front teeth
-      if (mouthOpenDist < 0.045) return { isReady: false, feedback: currentLanguage === 'en' ? 'Open wider' : '請張大嘴巴' };
+      if (mouthOpenDist < 0.045) return { isReady: false, feedback: t('openWider') };
       break;
 
     case 'lower_front':
       // Must be looking straight
-      if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: currentLanguage === 'en' ? 'Look straight' : '請直視前方' };
+      if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: t('lookStraight') };
       // REQUIRE JAW TO BE MUCH LOWER (No touching teeth)
-      if (mouthOpenDist < 0.1) return { isReady: false, feedback: currentLanguage === 'en' ? 'Open much wider' : '請將嘴巴張到最大' };
+      if (mouthOpenDist < 0.1) return { isReady: false, feedback: t('openMuchWider') };
       // Head must be tilted DOWN to focus on lower teeth
-      if (getPitchProxy(landmarks) < 0.015) return { isReady: false, feedback: currentLanguage === 'en' ? 'Tilt head down' : '請下傾頭部' };
+      if (getPitchProxy(landmarks) < 0.015) return { isReady: false, feedback: t('tiltHeadDown') };
       break;
 
     case 'upper_front':
       // Must be looking straight
-      if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: currentLanguage === 'en' ? 'Look straight' : '請直視前方' };
+      if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: t('lookStraight') };
       // REQUIRE JAW TO BE MUCH LOWER (No touching teeth)
-      if (mouthOpenDist < 0.1) return { isReady: false, feedback: currentLanguage === 'en' ? 'Open much wider' : '請將嘴巴張到最大' };
+      if (mouthOpenDist < 0.1) return { isReady: false, feedback: t('openMuchWider') };
       // Head must be tilted UP to focus on upper teeth
-      if (getPitchProxy(landmarks) > -0.015) return { isReady: false, feedback: currentLanguage === 'en' ? 'Tilt head up' : '請上傾頭部' };
+      if (getPitchProxy(landmarks) > -0.015) return { isReady: false, feedback: t('tiltHeadUp') };
       break;
       
     case 'side_bite':
       // Must be turned significantly (approx 70 degrees)
-      if (Math.abs(yaw) < 0.12) return { isReady: false, feedback: currentLanguage === 'en' ? 'Turn head to 70°' : '請將頭部側轉70度' };
+      if (Math.abs(yaw) < 0.12) return { isReady: false, feedback: t('turnHeadTo70') };
       // Mouth must ALSO be open for side view
-      if (mouthOpenDist < 0.04) return { isReady: false, feedback: currentLanguage === 'en' ? 'Open wider' : '請張大嘴巴' };
+      if (mouthOpenDist < 0.04) return { isReady: false, feedback: t('openWider') };
       break;
   }
 
-  return { isReady: true, feedback: currentLanguage === 'en' ? 'READY' : '準備就緒' };
+  return { isReady: true, feedback: t('ready') };
 }
 
 // Deprecated - kept for compatibility if needed elsewhere
@@ -1533,7 +1612,8 @@ async function initializeStageCapture(): Promise<void> {
 }
 
 function updateStageUI() {
-  const stage = CAPTURE_STAGES[activeStageIndex];
+  const stages = getCaptureStages();
+  const stage = stages[activeStageIndex];
   if (stageStepEl) stageStepEl.textContent = `${activeStageIndex + 1} of 4`;
   if (stageTitleEl) stageTitleEl.textContent = stage.title;
   if (stageInstructionEl) stageInstructionEl.textContent = stage.instruction;
@@ -1563,28 +1643,181 @@ function updateStageUI() {
 
 if (finalSubmitBtn) {
   finalSubmitBtn.addEventListener('click', async () => {
+    console.log('[DEBUG] Submit button clicked!');
+    
     const name = userNameInput.value.trim();
     const email = userEmailInput.value.trim();
-    const phone = userPhoneInput.value.trim();
+    let phone = userPhoneInput.value.trim();
+
+    console.log('[DEBUG] Form values:', { name, email, phone });
 
     if (!name || !email || !phone) {
       alert(currentLanguage === 'en' ? 'Please fill in all fields.' : '請填寫所有欄位。');
       return;
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      alert(currentLanguage === 'en' ? 'Please enter a valid email address.' : '請輸入有效的電子郵件地址。');
+      return;
+    }
+
+    // Clean and validate phone number
+    // Remove all spaces and non-digit characters except +
+    const cleanPhone = phone.replace(/[\s\-()]/g, '');
+    
+    // Check if it's a valid HK (8 digits) or China (11 digits) number
+    let finalPhone = cleanPhone;
+    
+    // Remove country code if present for validation
+    const phoneDigitsOnly = cleanPhone.replace(/^\+?852|^\+?86/, '');
+    
+    if (phoneDigitsOnly.length === 8) {
+      // Hong Kong number (8 digits)
+      if (!/^\d{8}$/.test(phoneDigitsOnly)) {
+        alert(currentLanguage === 'en' ? 'Please enter a valid 8-digit Hong Kong phone number.' : '請輸入有效的 8 位數香港電話號碼。');
+        return;
+      }
+      // Keep original format (with or without +852)
+      finalPhone = cleanPhone.startsWith('+852') || cleanPhone.startsWith('852') ? cleanPhone : phoneDigitsOnly;
+    } else if (phoneDigitsOnly.length === 11) {
+      // China number (11 digits)
+      if (!/^1\d{10}$/.test(phoneDigitsOnly)) {
+        alert(currentLanguage === 'en' ? 'Please enter a valid 11-digit China phone number starting with 1.' : '請輸入以 1 開頭的有效 11 位數中國電話號碼。');
+        return;
+      }
+      // Keep original format (with or without +86)
+      finalPhone = cleanPhone.startsWith('+86') || cleanPhone.startsWith('86') ? cleanPhone : phoneDigitsOnly;
+    } else {
+      alert(currentLanguage === 'en' 
+        ? 'Please enter a valid phone number (8 digits for HK, 11 digits for China).' 
+        : '請輸入有效的電話號碼（香港 8 位數或中國 11 位數）。');
+      return;
+    }
+
+    console.log('[DEBUG] Phone normalized:', finalPhone);
+
+    // Validate that we have at least the front image
+    if (!stageCaptures[0]) {
+      alert(currentLanguage === 'en' ? 'Please capture at least the front image.' : '請至少拍攝正面照片。');
+      return;
+    }
+
+    console.log('[DEBUG] Validation passed, preparing to submit...');
+
     finalSubmitBtn.disabled = true;
     finalSubmitBtn.textContent = currentLanguage === 'en' ? 'Submitting...' : '正在提交...';
 
-    // Simulate submission
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      // Convert data URLs to Blob files
+      const dataURLtoBlob = (dataurl: string): Blob => {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)![1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+      };
 
-    console.log('[DEBUG] Form submitted with:', { name, email, phone, photosCount: stageCaptures.length });
-    
-    alert(currentLanguage === 'en' ? 'Interest submitted! Our specialists will contact you shortly.' : '意向已提交！我們的專員將很快與您聯絡。');
-    
-    // Reset and go back to plan or landing
-    const switchTabFn = (window as any).switchTab; 
-    if (switchTabFn) switchTabFn('plan');
+      // Create FormData
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('email', email);
+      formData.append('phone', finalPhone);
+
+      // Add front image (required) - as File
+      if (stageCaptures[0]) {
+        const frontBlob = dataURLtoBlob(stageCaptures[0]);
+        formData.append('front_image', frontBlob, 'front_image.png');
+      }
+
+      // Add optional images - ALSO as Files (API requires files despite docs saying "string")
+      if (stageCaptures[2]) { // Upper view -> top_image
+        const topBlob = dataURLtoBlob(stageCaptures[2]);
+        formData.append('top_image', topBlob, 'top_image.png');
+      }
+
+      if (stageCaptures[1]) { // Lower view -> bottom_image
+        const bottomBlob = dataURLtoBlob(stageCaptures[1]);
+        formData.append('bottom_image', bottomBlob, 'bottom_image.png');
+      }
+
+      if (stageCaptures[3]) { // Side view -> side_image
+        const sideBlob = dataURLtoBlob(stageCaptures[3]);
+        formData.append('side_image', sideBlob, 'side_image.png');
+      }
+
+      console.log('[DEBUG] Submitting form to API...');
+      console.log('[DEBUG] FormData contents - Name:', name, 'Email:', email, 'Phone:', finalPhone);
+      console.log('[DEBUG] Images captured:', stageCaptures.map((img, i) => img ? `Image ${i}: YES` : `Image ${i}: NO`));
+
+      // Submit to backend API
+      const response = await fetch('https://mybeame.com/api/customer-manage/image', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('[DEBUG] API Response:', result);
+
+      if (result.code !== 200 && result.code !== 0) {
+        // Handle validation errors from backend
+        let errorMsg = currentLanguage === 'en' ? 'Submission failed.' : '提交失敗。';
+        if (result.data && result.data.phone) {
+          errorMsg = currentLanguage === 'en' ? 'Please enter a valid phone number.' : '請輸入正確的手機號！';
+        } else if (result.message) {
+          errorMsg = result.message;
+        }
+        throw new Error(errorMsg);
+      }
+
+      // Show the completion modal instead of alert
+      const modal = document.getElementById('completionModal');
+      if (modal) {
+        modal.style.display = 'flex';
+        
+        // Setup download button in modal
+        const modalDownloadBtn = document.getElementById('modalDownloadBtn');
+        if (modalDownloadBtn) {
+          modalDownloadBtn.onclick = () => {
+            const switchTabFn = (window as any).switchTab; 
+            if (switchTabFn) switchTabFn('preview');
+            modal.style.display = 'none';
+            // Trigger download
+            setTimeout(() => {
+              const downloadBtn = document.getElementById('downloadBtn');
+              if (downloadBtn) downloadBtn.click();
+            }, 500);
+          };
+        }
+      } else {
+        alert(currentLanguage === 'en' 
+          ? 'Interest submitted! Our specialists will contact you shortly.' 
+          : '意向已提交！我們的專員將很快與您聯絡。');
+      }
+      
+      // Reset button state
+      finalSubmitBtn.textContent = currentLanguage === 'en' ? 'Submitted' : '已提交';
+      finalSubmitBtn.style.background = '#0ca678';
+
+    } catch (error: any) {
+      console.error('[ERROR] Form submission failed:', error);
+      alert(error.message || (currentLanguage === 'en' 
+        ? 'Submission failed. Please try again or contact support.' 
+        : '提交失敗。請重試或聯絡客服。'));
+      
+      // Re-enable button on error
+      finalSubmitBtn.disabled = false;
+      finalSubmitBtn.textContent = currentLanguage === 'en' ? 'Submit My Scans' : '提交我的掃描';
+    }
   });
 }
 
@@ -1626,6 +1859,7 @@ function downloadResult() {
 }
 
 async function retry() {
+  if (camera) { (camera as any).stop(); camera = null; }
   if (stageCamera) (stageCamera as any).stop(); stageCamera = null;
   pendingDentalAnalysis = null; stageCaptures = [null, null, null, null]; activeStageIndex = 0;
   

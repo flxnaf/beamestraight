@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Beame AI Analysis - Transform Your Smile</title>
+    <link rel="icon" type="image/jpeg" href="../beame favicon.jpg">
     <link rel="stylesheet" href="./style.css">
 </head>
 <body class="app-body">
@@ -400,8 +401,8 @@
 
                             <div class="camera-controls">
                                 <div class="stage-instruction-container">
-                                    <h3 id="stageTitle">Front Open View</h3>
-                                    <p id="stageInstruction">Open your mouth wide to clearly show all your front teeth. Align your mouth within the guides.</p>
+                                    <h3 id="stageTitle" data-en="Front Open View" data-zh="正面張口視圖">Front Open View</h3>
+                                    <p id="stageInstruction" data-en="Open your mouth wide to clearly show all your front teeth. Align your mouth within the guides." data-zh="請將嘴巴張大，清楚展示您的所有前牙。請將您的嘴巴對準導引框。">Open your mouth wide to clearly show all your front teeth. Align your mouth within the guides.</p>
                                 </div>
                                 <div class="stage-actions">
                                     <button id="stageRetakeBtn" class="btn-app btn-outline sm">
@@ -467,7 +468,7 @@
                                 
                                 <div class="form-group">
                                     <label for="userPhone" data-en="Phone Number" data-zh="電話號碼">Phone Number</label>
-                                    <input type="tel" id="userPhone" placeholder="+852 1234 5678">
+                                    <input type="tel" id="userPhone" placeholder="9123 4567 (HK) or 138 0013 8000 (CN)">
                                 </div>
 
                                 <div class="form-notice">
@@ -495,6 +496,43 @@
             <img src="../landing/pics/beamelogogreen.png" alt="Beame Logo" class="footer-logo">
             <p>&copy; 2026 Beame AI - <span data-en="Transforming Smiles" data-zh="改變笑容">Transforming Smiles</span></p>
         </footer>
+    </div>
+
+    <!-- Completion Modal -->
+    <div id="completionModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card success-modal">
+            <div class="modal-header">
+                <div class="success-icon-wrap">
+                    <svg class="success-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h2 data-en="Submission Successful!" data-zh="提交成功！">Submission Successful!</h2>
+                <p data-en="Your scans have been sent to our clinical team." data-zh="您的掃描已發送至我們的臨床團隊。">Your scans have been sent to our clinical team.</p>
+            </div>
+            
+            <div class="modal-body">
+                <p class="modal-hint" data-en="What would you like to do next?" data-zh="您接下來想做什麼？">What would you like to do next?</p>
+                <div class="modal-actions-vertical">
+                    <button id="modalDownloadBtn" class="btn-app btn-primary full-width">
+                        <svg class="icon-svg-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M7.5 12 12 16.5m0 0L16.5 12M12 16.5V3" />
+                        </svg>
+                        <span data-en="Download My AI Results" data-zh="下載我的 AI 結果">Download My AI Results</span>
+                    </button>
+                    <a href="../landing/index.html" class="btn-app btn-outline full-width">
+                        <svg class="icon-svg-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                        </svg>
+                        <span data-en="Back to Home" data-zh="返回主頁">Back to Home</span>
+                    </a>
+                </div>
+            </div>
+            
+            <button class="modal-close-minimal" onclick="document.getElementById('completionModal').style.display='none'">
+                <span data-en="Dismiss" data-zh="關閉">Dismiss</span>
+            </button>
+        </div>
     </div>
 
     <script type="module" src="./main.ts"></script>
