@@ -120,24 +120,18 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
 .hamburger {
   display: none;
   flex-direction: column;
-  gap: 8px !important; /* Increased gap to prevent squishing */
+  gap: 5px;
   cursor: pointer;
-  padding: 10px !important;
+  padding: 10px;
   z-index: 1001;
-  width: 50px !important;
-  height: 50px !important;
-  justify-content: center;
-  align-items: center;
-  margin-left: -10px;
 }
 
 .hamburger span {
-  width: 28px !important; /* Wider bars */
-  height: 3px !important; /* Slightly thicker for visibility */
-  background-color: var(--beame-green) !important;
-  border-radius: 4px;
+  width: 25px;
+  height: 3px;
+  background-color: var(--beame-green);
+  border-radius: 3px;
   transition: all 0.3s ease;
-  display: block;
 }
 
 .sidebar {
@@ -195,7 +189,17 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
 .sidebar-links {
   display: flex;
   flex-direction: column;
-  gap: 25px;
+  gap: 20px;
+}
+
+.sidebar-divider {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 10px 0;
+}
+
+.book-link-sidebar {
+  color: var(--beame-green) !important;
 }
 
 .sidebar-link {
@@ -241,37 +245,28 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   }
   
   .logo-links-container {
-    gap: 0px !important; /* Bring logo closer to hamburger */
+    gap: 10px;
   }
   
   .logo img {
-    height: 42px !important;
+    height: 40px !important;
   }
   
   .nav-right {
-    gap: 10px !important;
-  }
-  
-  .book-btn {
-    padding: 8px 18px !important;
-    font-size: 14px !important;
+    gap: 10px;
   }
 
   .top {
-    margin-top: 60px !important; /* Match mobile navbar height exactly */
-    padding-top: 0 !important;
+    margin-top: 60px;
   }
 
   .computer {
-    height: 80vh !important; /* Fill more of the screen */
-    min-height: 500px !important;
-    background: white !important; /* Ensure background isn't gray */
-  }
-
-  .banner-overlay {
-    background: linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 50%) !important; /* Lighter bottom gradient */
+    height: 75vh;
+    min-height: 450px;
   }
 }
+
+/* Original Styles */
 
 /* Original Styles */
 .fixed-top {
