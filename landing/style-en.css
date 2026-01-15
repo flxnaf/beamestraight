@@ -120,20 +120,22 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
 .hamburger {
   display: none;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   cursor: pointer;
-  padding: 10px;
+  padding: 5px;
   z-index: 1001;
-  width: 45px;
-  height: 45px;
+  width: 40px;
+  height: 40px;
   justify-content: center;
+  align-items: center;
+  margin-left: -5px;
 }
 
 .hamburger span {
-  width: 25px;
-  height: 3px;
+  width: 22px;
+  height: 2px;
   background-color: var(--beame-green) !important;
-  border-radius: 3px;
+  border-radius: 2px;
   transition: all 0.3s ease;
   display: block;
 }
@@ -239,29 +241,34 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   }
   
   .logo-links-container {
-    gap: 10px;
+    gap: 5px;
   }
   
   .logo img {
-    height: 40px !important;
+    height: 38px !important;
   }
   
   .nav-right {
-    gap: 10px;
+    gap: 8px;
   }
   
   .book-btn {
-    padding: 6px 16px;
+    padding: 6px 14px;
     font-size: 13px;
+    letter-spacing: 0;
   }
 
   .top {
-    margin-top: 60px;
+    margin-top: 59px; /* Tighten up the gap to navbar */
   }
 
   .computer {
-    height: 70vh;
-    min-height: 400px;
+    height: 75vh;
+    min-height: 450px;
+  }
+
+  .banner-overlay {
+    background: rgba(0,0,0,0.15); /* Less dark overlay at bottom */
   }
 }
 
