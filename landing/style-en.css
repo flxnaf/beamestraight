@@ -120,22 +120,22 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
 .hamburger {
   display: none;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px !important; /* Increased gap to prevent squishing */
   cursor: pointer;
-  padding: 5px;
+  padding: 10px !important;
   z-index: 1001;
-  width: 40px;
-  height: 40px;
+  width: 50px !important;
+  height: 50px !important;
   justify-content: center;
   align-items: center;
-  margin-left: -5px;
+  margin-left: -10px;
 }
 
 .hamburger span {
-  width: 22px;
-  height: 2px;
+  width: 28px !important; /* Wider bars */
+  height: 3px !important; /* Slightly thicker for visibility */
   background-color: var(--beame-green) !important;
-  border-radius: 2px;
+  border-radius: 4px;
   transition: all 0.3s ease;
   display: block;
 }
@@ -241,34 +241,35 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   }
   
   .logo-links-container {
-    gap: 5px;
+    gap: 0px !important; /* Bring logo closer to hamburger */
   }
   
   .logo img {
-    height: 38px !important;
+    height: 42px !important;
   }
   
   .nav-right {
-    gap: 8px;
+    gap: 10px !important;
   }
   
   .book-btn {
-    padding: 6px 14px;
-    font-size: 13px;
-    letter-spacing: 0;
+    padding: 8px 18px !important;
+    font-size: 14px !important;
   }
 
   .top {
-    margin-top: 59px; /* Tighten up the gap to navbar */
+    margin-top: 60px !important; /* Match mobile navbar height exactly */
+    padding-top: 0 !important;
   }
 
   .computer {
-    height: 75vh;
-    min-height: 450px;
+    height: 80vh !important; /* Fill more of the screen */
+    min-height: 500px !important;
+    background: white !important; /* Ensure background isn't gray */
   }
 
   .banner-overlay {
-    background: rgba(0,0,0,0.15); /* Less dark overlay at bottom */
+    background: linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 50%) !important; /* Lighter bottom gradient */
   }
 }
 

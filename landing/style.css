@@ -120,119 +120,24 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
 .hamburger {
   display: none;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px !important; /* Increased gap to prevent squishing */
   cursor: pointer;
-  padding: 5px;
+  padding: 10px !important;
   z-index: 1001;
-  width: 40px;
-  height: 40px;
+  width: 50px !important;
+  height: 50px !important;
   justify-content: center;
   align-items: center;
-  margin-left: -5px;
+  margin-left: -10px;
 }
 
 .hamburger span {
-  width: 22px;
-  height: 2px;
+  width: 28px !important; /* Wider bars */
+  height: 3px !important; /* Slightly thicker for visibility */
   background-color: var(--beame-green) !important;
-  border-radius: 2px;
+  border-radius: 4px;
   transition: all 0.3s ease;
   display: block;
-}
-
-.sidebar {
-  position: fixed;
-  top: 0;
-  left: -280px;
-  width: 280px;
-  height: 100vh;
-  background: white;
-  z-index: 2000;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-}
-
-.sidebar.active {
-  left: 0;
-}
-
-.sidebar-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 1999;
-  display: none;
-  backdrop-filter: blur(3px);
-}
-
-.sidebar-overlay.active {
-  display: block;
-}
-
-.sidebar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 40px;
-}
-
-.sidebar-header .logo img {
-  height: 40px;
-}
-
-.close-btn {
-  font-size: 30px;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.sidebar-links {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-}
-
-.sidebar-link {
-  text-decoration: none;
-  color: var(--text-main);
-  font-size: 18px;
-  font-weight: 700;
-  transition: color 0.3s ease;
-}
-
-.sidebar-link:hover {
-  color: var(--beame-green);
-}
-
-.sidebar-footer {
-  margin-top: auto;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
-}
-
-.book-btn {
-  background: var(--beame-gradient);
-  color: white;
-  text-decoration: none;
-  padding: 8px 24px;
-  border-radius: 50px;
-  font-weight: 800;
-  font-size: 14px;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 10px rgba(0, 206, 124, 0.2);
-  white-space: nowrap;
-}
-
-.book-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(0, 206, 124, 0.3);
-  color: white;
 }
 
 @media (max-width: 768px) {
@@ -241,34 +146,35 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
   }
   
   .logo-links-container {
-    gap: 5px;
+    gap: 0px !important; /* Bring logo closer to hamburger */
   }
   
   .logo img {
-    height: 38px !important;
+    height: 42px !important;
   }
   
   .nav-right {
-    gap: 8px;
+    gap: 10px !important;
   }
   
   .book-btn {
-    padding: 6px 14px;
-    font-size: 13px;
-    letter-spacing: 0;
+    padding: 8px 18px !important;
+    font-size: 14px !important;
   }
 
   .top {
-    margin-top: 59px; /* Tighten up the gap to navbar */
+    margin-top: 60px !important; /* Match mobile navbar height exactly */
+    padding-top: 0 !important;
   }
 
   .computer {
-    height: 75vh;
-    min-height: 450px;
+    height: 80vh !important; /* Fill more of the screen */
+    min-height: 500px !important;
+    background: white !important; /* Ensure background isn't gray */
   }
 
   .banner-overlay {
-    background: rgba(0,0,0,0.15); /* Less dark overlay at bottom */
+    background: linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 50%) !important; /* Lighter bottom gradient */
   }
 }
 
