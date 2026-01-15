@@ -12,6 +12,11 @@
     <nav class="fixed-top">
         <div class="navbar-container">
             <div class="logo-links-container">
+                <div class="hamburger mobile-view" onclick="toggleSidebar()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
                 <a href="#" class="logo">
                     <img src="./pics/beamelogogreen.png" alt="Beame Logo">
                 </a>
@@ -23,25 +28,35 @@
             </div>
 
             <div class="nav-right">
-                <div class="language-switcher">
+                <div class="language-switcher pc-view">
                     <button class="lang-btn" onclick="switchLanguage('zh')">中文</button>
                     <button class="lang-btn active" onclick="switchLanguage('en')">EN</button>
                 </div>
+                <a href="https://mybeame.com/aligner" class="book-btn">Book Now</a>
             </div>
         </div>
     </nav>
 
-    <!-- Mobile Bottom Nav -->
-    <div class="mobile-nav mobile-view">
-        <a href="#journey" class="mobile-nav-item">
-            <span>Journey</span>
-        </a>
-        <a href="#pricing" class="mobile-nav-item">
-            <span>Pricing</span>
-        </a>
-        <a href="#experience" class="mobile-nav-item">
-            <span>Experience</span>
-        </a>
+    <!-- Sidebar for Mobile -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="#" class="logo" onclick="toggleSidebar()">
+                <img src="./pics/beamelogogreen.png" alt="Beame Logo">
+            </a>
+            <div class="close-btn" onclick="toggleSidebar()">&times;</div>
+        </div>
+        <div class="sidebar-links">
+            <a href="#journey" class="sidebar-link" onclick="toggleSidebar()">Journey</a>
+            <a href="#pricing" class="sidebar-link" onclick="toggleSidebar()">Pricing</a>
+            <a href="#experience" class="sidebar-link" onclick="toggleSidebar()">Experience</a>
+        </div>
+        <div class="sidebar-footer">
+            <div class="language-switcher">
+                <button class="lang-btn" onclick="switchLanguage('zh')">中文</button>
+                <button class="lang-btn active" onclick="switchLanguage('en')">EN</button>
+            </div>
+        </div>
     </div>
 
     <!-- Hero Banner -->
@@ -665,7 +680,13 @@
         }
 
         function startAnalysis() { window.location.href = '../analysis/index.html'; }
-        function bookConsultation() { alert('Consultation booking is coming soon! Please try our AI analysis first.'); }
+        function bookConsultation() { window.location.href = 'https://mybeame.com/aligner'; }
+        
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('sidebar-overlay').classList.toggle('active');
+            document.body.style.overflow = document.getElementById('sidebar').classList.contains('active') ? 'hidden' : '';
+        }
         
         // Hide scroll arrow on scroll
         window.addEventListener('scroll', function() {

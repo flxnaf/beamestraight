@@ -116,7 +116,143 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
     .col-lg-5 { flex: 0 0 41.666667%; max-width: 41.666667%; }
 }
 
-/* Navigation Bar */
+/* Sidebar & Hamburger Menu */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  padding: 10px;
+  z-index: 1001;
+}
+
+.hamburger span {
+  width: 25px;
+  height: 3px;
+  background-color: var(--beame-green);
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: -280px;
+  width: 280px;
+  height: 100vh;
+  background: white;
+  z-index: 2000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.sidebar.active {
+  left: 0;
+}
+
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1999;
+  display: none;
+  backdrop-filter: blur(3px);
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.sidebar-header .logo img {
+  height: 40px;
+}
+
+.close-btn {
+  font-size: 30px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sidebar-links {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.sidebar-link {
+  text-decoration: none;
+  color: var(--text-main);
+  font-size: 18px;
+  font-weight: 700;
+  transition: color 0.3s ease;
+}
+
+.sidebar-link:hover {
+  color: var(--beame-green);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.book-btn {
+  background: var(--beame-gradient);
+  color: white;
+  text-decoration: none;
+  padding: 8px 24px;
+  border-radius: 50px;
+  font-weight: 800;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 206, 124, 0.2);
+  white-space: nowrap;
+}
+
+.book-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 206, 124, 0.3);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .hamburger {
+    display: flex;
+  }
+  
+  .logo-links-container {
+    gap: 10px;
+  }
+  
+  .logo img {
+    height: 35px !important;
+  }
+  
+  .nav-right {
+    gap: 10px;
+  }
+  
+  .book-btn {
+    padding: 6px 16px;
+    font-size: 13px;
+  }
+}
+
+/* Original Styles */
 .fixed-top {
   position: fixed;
   top: 0;
