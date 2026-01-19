@@ -9,6 +9,8 @@ runs/
 teeth-2/
 train_teeth_model.py
 *.pt
+datasets/
+Training Data/
 
 # Keep the final ONNX model for deployment
 # public/models/*.onnx is NOT ignored (we need it!)
