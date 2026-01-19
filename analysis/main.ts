@@ -16,6 +16,7 @@ import {
 import { enableDiagnostics } from './utils/diagnostics';
 import type { ScanSession, DentalAnalysis, TreatmentPlan } from './types/dental';
 import { loadONNXModel, detectTeethONNX, isONNXReady } from './services/onnxInference';
+import { drawSmoothToothOverlay } from './services/teethOverlay';
 
 // CONFIGURATION: Set to true to save API credits during development
 const USE_FALLBACK_MODE = true; // Set to false to enable real AI generation
@@ -24,9 +25,9 @@ const USE_FALLBACK_MODE = true; // Set to false to enable real AI generation
 const _genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
 
 // LOCAL TOOTH DETECTION (ONNX - Runs in browser!)
-const ONNX_MODEL_PATH = import.meta.env.VITE_ONNX_MODEL_PATH || '/models/teeth-detection.onnx';
-const ENABLE_TOOTH_DETECTION = false; // DISABLED: Model too buggy and causes lag
-const SHOW_TOOTH_OVERLAY = false; // DISABLED: Hide overlay (only relevant if detection is enabled)
+const ONNX_MODEL_PATH = import.meta.env.VITE_ONNX_MODEL_PATH || '/models/teeth-detection-seg.onnx';
+const ENABLE_TOOTH_DETECTION = true; // ENABLED: Segmentation model with smooth overlays
+const SHOW_TOOTH_OVERLAY = true; // ENABLED: Show beautiful tooth overlays
 
 // Roboflow API (fallback only - slower)
 const ROBOFLOW_API_KEY = import.meta.env.VITE_ROBOFLOW_API_KEY || '';
@@ -450,69 +451,11 @@ function filterDetectionsInMouthRegion(
   });
 }
 
-// Draw tooth detections overlay (adapts to actual tooth sizes!)
+// Draw smooth tooth overlays (professional Smileset-style)
 function drawTeethDetections(ctx: CanvasRenderingContext2D, detections: ToothDetection[]) {
-  if (detections.length === 0) return;
-
-  detections.forEach((tooth) => {
-    const toothWidth = tooth.width;
-    const toothHeight = tooth.height;
-    const radius = Math.min(toothWidth, toothHeight) * 0.15;
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.lineWidth = Math.max(2, toothWidth * 0.03);
-    
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
-    ctx.shadowBlur = Math.min(12, toothWidth * 0.15);
-    
-    ctx.beginPath();
-    ctx.moveTo(tooth.x + radius, tooth.y);
-    ctx.lineTo(tooth.x + toothWidth - radius, tooth.y);
-    ctx.quadraticCurveTo(tooth.x + toothWidth, tooth.y, tooth.x + toothWidth, tooth.y + radius);
-    ctx.lineTo(tooth.x + toothWidth, tooth.y + toothHeight - radius);
-    ctx.quadraticCurveTo(tooth.x + toothWidth, tooth.y + toothHeight, tooth.x + toothWidth - radius, tooth.y + toothHeight);
-    ctx.lineTo(tooth.x + radius, tooth.y + toothHeight);
-    ctx.quadraticCurveTo(tooth.x, tooth.y + toothHeight, tooth.x, tooth.y + toothHeight - radius);
-    ctx.lineTo(tooth.x, tooth.y + radius);
-    ctx.quadraticCurveTo(tooth.x, tooth.y, tooth.x + radius, tooth.y);
-    ctx.closePath();
-    
-    ctx.fill();
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    
-    if (tooth.toothNumber) {
-      const fontSize = Math.max(12, Math.min(18, toothHeight * 0.3));
-      ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-      ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.lineWidth = fontSize * 0.2;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      const textX = tooth.x + toothWidth / 2;
-      const textY = tooth.y - fontSize * 0.8;
-      
-      ctx.strokeText(tooth.toothNumber, textX, textY);
-      ctx.fillText(tooth.toothNumber, textX, textY);
-    }
-  });
-  
-  const avgConfidence = detections.length > 0 
-    ? (detections.reduce((sum, d) => sum + d.confidence, 0) / detections.length * 100).toFixed(0)
-    : '0';
-  
-  ctx.save();
-  ctx.font = 'bold 16px monospace';
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-  ctx.textAlign = 'right';
-  ctx.fillRect(ctx.canvas.width - 220, 10, 210, 60);
-  
-  ctx.fillStyle = '#00ce7c';
-  ctx.fillText(`Teeth: ${detections.length}`, ctx.canvas.width - 20, 35);
-  ctx.fillText(`Avg: ${avgConfidence}%`, ctx.canvas.width - 20, 55);
-  ctx.restore();
+  if (SHOW_TOOTH_OVERLAY) {
+    drawSmoothToothOverlay(ctx, detections, true);
+  }
 }
 
 // Draw clean mouth tracking overlay - professional and minimal
