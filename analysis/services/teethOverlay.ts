@@ -28,34 +28,37 @@ export function drawSmoothToothOverlay(
   if (detections.length === 0) return;
 
   detections.forEach((tooth) => {
-    // Convert box to 4-point polygon for smooth rendering
+    // Convert box to 4-point polygon with slightly inset corners for more tooth-like shape
+    const insetX = tooth.width * 0.05; // 5% inset horizontally
+    const insetY = tooth.height * 0.02; // 2% inset vertically (less round)
+    
     const corners: Point[] = [
-      { x: tooth.x, y: tooth.y },
-      { x: tooth.x + tooth.width, y: tooth.y },
-      { x: tooth.x + tooth.width, y: tooth.y + tooth.height },
-      { x: tooth.x, y: tooth.y + tooth.height }
+      { x: tooth.x + insetX, y: tooth.y + insetY }, // Top-left
+      { x: tooth.x + tooth.width - insetX, y: tooth.y + insetY }, // Top-right
+      { x: tooth.x + tooth.width - insetX, y: tooth.y + tooth.height - insetY }, // Bottom-right
+      { x: tooth.x + insetX, y: tooth.y + tooth.height - insetY } // Bottom-left
     ];
 
     // Draw smooth curved polygon
     ctx.save();
     
-    // Glow effect
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.6)';
-    ctx.shadowBlur = 12;
+    // Optimized rendering - reduced shadow blur for performance
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.4)';
+    ctx.shadowBlur = 6; // Reduced from 12 for performance
     
-    // Draw smooth curve
+    // Draw tooth shape (slightly rounded corners but not overly smooth)
     ctx.beginPath();
-    drawSmoothPolygon(ctx, corners, 0.3);
+    drawSmoothPolygon(ctx, corners, 0.15); // Reduced tension from 0.3 to 0.15 for less roundness
     ctx.closePath();
     
-    // Fill
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.30)';
+    // Fill with less opacity to reduce visual overlap
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.20)';
     ctx.fill();
     
-    // Stroke
+    // Stroke with sharper lines
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.90)';
+    ctx.lineWidth = 2.5;
     ctx.stroke();
     
     // Draw tooth number badge
@@ -89,8 +92,8 @@ export function drawSmoothToothOverlay(
     ctx.restore();
   });
   
-  // Stats panel
-  drawStatsPanel(ctx, detections.length, ctx.canvas.width, ctx.canvas.height);
+  // Stats panel (optional - comment out for better performance)
+  // drawStatsPanel(ctx, detections.length, ctx.canvas.width, ctx.canvas.height);
 }
 
 /**

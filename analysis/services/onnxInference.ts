@@ -30,10 +30,12 @@ export async function loadONNXModel(modelPath: string): Promise<void> {
   try {
     // Configure ONNX Runtime for WebGL (GPU acceleration)
     ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
+    ort.env.wasm.numThreads = 1; // Single thread for better stability
     
-    // Load model
+    // Load model with optimized settings
     session = await ort.InferenceSession.create(modelPath, {
       executionProviders: ['webgl', 'wasm'], // Try GPU first, fallback to CPU
+      graphOptimizationLevel: 'all', // Enable all optimizations
     });
     
     console.log('[DEBUG] ONNX model loaded successfully!');
@@ -65,11 +67,7 @@ export async function detectTeethONNX(
     const tensor = preprocessImage(imageData, inputWidth, inputHeight);
     
     // Run inference
-    const startTime = performance.now();
     const results = await session.run({ images: tensor });
-    const endTime = performance.now();
-    
-    console.log(`[DEBUG] ONNX inference took ${(endTime - startTime).toFixed(1)}ms`);
     
     // Post-process results
     const detections = postprocessResults(
@@ -147,8 +145,6 @@ function postprocessResults(
   const outputData = output.data;
   const dims = output.dims;
   
-  console.log('Output dims:', dims);
-  
   // YOLOv8 format: [1, 84, 8400]
   // - dims[0] = batch (1)
   // - dims[1] = features (4 bbox + 80 classes = 84)
@@ -159,7 +155,7 @@ function postprocessResults(
   
   const scaleX = originalWidth / inputWidth;
   const scaleY = originalHeight / inputHeight;
-  const confidenceThreshold = 0.3; // Lower threshold for undertrained model
+  const confidenceThreshold = 0.55; // Balanced threshold - shows most teeth without too many false positives
   
   try {
     // YOLOv8 uses transposed format: data is stored as [features, boxes]
@@ -176,7 +172,7 @@ function postprocessResults(
       // For single-class (tooth), just use first class score
       const classScore = outputData[numBoxes * 4 + boxIdx]; // Feature 4
       
-      // Apply sigmoid to get actual confidence (0-1 range)
+      // YOLOv8 typically outputs raw logits - always apply sigmoid
       const confidence = 1 / (1 + Math.exp(-classScore));
       
       if (confidence > confidenceThreshold) {
@@ -197,12 +193,62 @@ function postprocessResults(
       }
     }
     
-    console.log(`[DEBUG] Parsed ${detections.length} detections (threshold: ${confidenceThreshold})`);
+    // Reduced logging for performance
+    if (detections.length > 0) {
+      console.log(`[DEBUG] Detected ${detections.length} → NMS filtering...`);
+    }
   } catch (error) {
     console.error('[DEBUG] Error parsing YOLO output:', error);
   }
   
-  return detections;
+  // Apply Non-Maximum Suppression to remove overlapping detections
+  const nmsDetections = applyNMS(detections, 0.2); // IOU threshold of 0.2 (more aggressive - less overlap)
+  
+  return nmsDetections;
+}
+
+/**
+ * Apply Non-Maximum Suppression to remove overlapping boxes
+ */
+function applyNMS(detections: Detection[], iouThreshold: number = 0.4): Detection[] {
+  if (detections.length === 0) return [];
+  
+  // Sort by confidence (highest first)
+  const sorted = [...detections].sort((a, b) => b.confidence - a.confidence);
+  const selected: Detection[] = [];
+  
+  while (sorted.length > 0) {
+    // Take the detection with highest confidence
+    const current = sorted.shift()!;
+    selected.push(current);
+    
+    // Remove all detections that overlap significantly with current
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      const iou = calculateIOU(current, sorted[i]);
+      if (iou > iouThreshold) {
+        sorted.splice(i, 1);
+      }
+    }
+  }
+  
+  return selected;
+}
+
+/**
+ * Calculate Intersection over Union between two boxes
+ */
+function calculateIOU(box1: Detection, box2: Detection): number {
+  const x1 = Math.max(box1.x, box2.x);
+  const y1 = Math.max(box1.y, box2.y);
+  const x2 = Math.min(box1.x + box1.width, box2.x + box2.width);
+  const y2 = Math.min(box1.y + box1.height, box2.y + box2.height);
+  
+  const intersectionArea = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+  const box1Area = box1.width * box1.height;
+  const box2Area = box2.width * box2.height;
+  const unionArea = box1Area + box2Area - intersectionArea;
+  
+  return intersectionArea / unionArea;
 }
 
 /**

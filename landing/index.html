@@ -13,9 +13,9 @@
         <div class="navbar-container">
             <div class="logo-links-container">
                 <div class="hamburger mobile-view" onclick="toggleSidebar()">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
                 </div>
                 <a href="#" class="logo">
                     <img src="./pics/beamelogogreen.png" alt="Beame Logo">
@@ -24,6 +24,7 @@
                     <a href="#journey" class="nav-link">箍牙流程</a>
                     <a href="#pricing" class="nav-link">方案價錢</a>
                     <a href="#experience" class="nav-link">體驗門店</a>
+                    <a href="https://mybeame.com/aligner" class="book-btn">立即預約</a>
                 </div>
             </div>
 
@@ -32,7 +33,7 @@
                     <button class="lang-btn active" onclick="switchLanguage('zh')">中文</button>
                     <button class="lang-btn" onclick="switchLanguage('en')">EN</button>
                 </div>
-                <a href="https://mybeame.com/aligner" class="book-btn pc-view">立即預約</a>
+                <a href="https://mybeame.com/aligner" class="book-btn mobile-view">立即預約</a>
             </div>
         </div>
     </nav>
@@ -50,8 +51,7 @@
             <a href="#journey" class="sidebar-link" onclick="toggleSidebar()">箍牙流程</a>
             <a href="#pricing" class="sidebar-link" onclick="toggleSidebar()">方案價錢</a>
             <a href="#experience" class="sidebar-link" onclick="toggleSidebar()">體驗門店</a>
-            <hr class="sidebar-divider">
-            <a href="https://mybeame.com/aligner" class="sidebar-link book-link-sidebar" onclick="toggleSidebar()">立即預約</a>
+            <a href="https://mybeame.com/aligner" class="sidebar-link" onclick="toggleSidebar()">立即預約</a>
         </div>
         <div class="sidebar-footer">
             <div class="language-switcher">
@@ -714,11 +714,11 @@
             }
         }
 
-        // Auto slide
-        setInterval(() => {
-            currentSlide = (currentSlide + 1) % totalSlides;
-            updateCarousel(currentSlide);
-        }, 5000);
+        // Auto slide disabled
+        // setInterval(() => {
+        //     currentSlide = (currentSlide + 1) % totalSlides;
+        //     updateCarousel(currentSlide);
+        // }, 5000);
 
         // Click on dots
         for (let i = 0; i < dots.length; i++) {

@@ -303,8 +303,17 @@ interface ToothDetection {
 
 let currentTeethDetections: ToothDetection[] = [];
 let lastToothDetectionTime = 0;
-const TOOTH_DETECTION_INTERVAL = 1000; // Run detection every 1000ms (reduced lag)
+const TOOTH_DETECTION_INTERVAL = 1500; // Run inference every 1.5s (smooth camera + accurate teeth tracking)
 let isDetecting = false; // Prevent overlapping API calls
+
+// Cache for real-time tooth tracking
+interface TeethTrackingCache {
+  detections: ToothDetection[];
+  referenceMouthCenter: { x: number; y: number };
+  referenceMouthWidth: number;
+  referenceMouthHeight: number;
+}
+let teethTrackingCache: TeethTrackingCache | null = null;
 
 // Tab 3 (4-stage capture) state
 type CaptureStageId = 'front_smile' | 'lower_front' | 'upper_front' | 'side_bite';
@@ -348,6 +357,7 @@ let stageLandmarks: any[] | null = null;
 let stageTeethDetections: ToothDetection[] = [];
 let stageIsDetecting = false;
 let stageLastDetectTime = 0;
+let stageTeethTrackingCache: TeethTrackingCache | null = null;
 
 // Initialize MediaPipe Face Mesh
 function initializeFaceMesh() {
@@ -396,6 +406,51 @@ function isMouthOpen(landmarks: any[]): boolean {
   const threshold = 0.05; // Increased from 0.04 to 0.05
   
   return mouthOpenDistance > threshold;
+}
+
+// Transform cached teeth detections to current mouth position for real-time tracking
+function transformTeethToCurrentMouth(
+  cache: TeethTrackingCache,
+  currentLandmarks: any[],
+  width: number,
+  height: number
+): ToothDetection[] {
+  // Get current mouth metrics
+  const upperLip = currentLandmarks[13];
+  const lowerLip = currentLandmarks[14];
+  const leftMouth = currentLandmarks[61];
+  const rightMouth = currentLandmarks[291];
+  
+  if (!upperLip || !lowerLip || !leftMouth || !rightMouth) {
+    return cache.detections; // Return original if landmarks missing
+  }
+  
+  const currentMouthCenterX = ((leftMouth.x + rightMouth.x) / 2) * width;
+  const currentMouthCenterY = ((upperLip.y + lowerLip.y) / 2) * height;
+  const currentMouthWidth = Math.abs((rightMouth.x - leftMouth.x) * width);
+  const currentMouthHeight = Math.abs((lowerLip.y - upperLip.y) * height);
+  
+  // Calculate transformation
+  const translateX = currentMouthCenterX - cache.referenceMouthCenter.x;
+  const translateY = currentMouthCenterY - cache.referenceMouthCenter.y;
+  const scaleX = currentMouthWidth / cache.referenceMouthWidth;
+  const scaleY = currentMouthHeight / cache.referenceMouthHeight;
+  
+  // Transform each tooth detection
+  return cache.detections.map(tooth => {
+    // Calculate relative position to reference mouth center
+    const relX = tooth.x - cache.referenceMouthCenter.x;
+    const relY = tooth.y - cache.referenceMouthCenter.y;
+    
+    // Apply scale and translation
+    return {
+      ...tooth,
+      x: cache.referenceMouthCenter.x + relX * scaleX + translateX,
+      y: cache.referenceMouthCenter.y + relY * scaleY + translateY,
+      width: tooth.width * scaleX,
+      height: tooth.height * scaleY
+    };
+  });
 }
 
 // Extract tooth number from class name (e.g., "tooth_11" -> "11")
@@ -790,13 +845,74 @@ function onFaceMeshResults(results: any) {
       }
     }
     
-    // Draw custom Beame face mesh (Original Tab 1 style)
+    // Run ONNX teeth detection BEFORE drawing overlays (for clean inference)
+    if (ENABLE_TOOTH_DETECTION && isONNXReady() && !isDetecting) {
+      const now = Date.now();
+      if (now - lastToothDetectionTime > TOOTH_DETECTION_INTERVAL) {
+        lastToothDetectionTime = now;
+        isDetecting = true;
+        
+        // Get clean ImageData BEFORE overlays are drawn
+        const imageData = canvasCtx.getImageData(0, 0, canvasElement.width, canvasElement.height);
+        
+        // Run ONNX detection (640x640 - model's fixed input size)
+        detectTeethONNX(imageData).then(detections => {
+          // Filter detections to mouth region only
+          const filteredDetections = filterDetectionsInMouthRegion(
+            detections, 
+            landmarks, 
+            canvasElement.width, 
+            canvasElement.height
+          );
+          
+          // Cache detections with current mouth position for real-time tracking
+          const upperLip = landmarks[13];
+          const lowerLip = landmarks[14];
+          const leftMouth = landmarks[61];
+          const rightMouth = landmarks[291];
+          
+          if (upperLip && lowerLip && leftMouth && rightMouth) {
+            teethTrackingCache = {
+              detections: filteredDetections,
+              referenceMouthCenter: {
+                x: ((leftMouth.x + rightMouth.x) / 2) * canvasElement.width,
+                y: ((upperLip.y + lowerLip.y) / 2) * canvasElement.height
+              },
+              referenceMouthWidth: Math.abs((rightMouth.x - leftMouth.x) * canvasElement.width),
+              referenceMouthHeight: Math.abs((lowerLip.y - upperLip.y) * canvasElement.height)
+            };
+          }
+          
+          currentTeethDetections = filteredDetections;
+          isDetecting = false;
+        }).catch(err => {
+          console.error('[DEBUG] Teeth detection failed:', err);
+          isDetecting = false;
+        });
+      }
+    }
+    
+    // Draw custom Beame face mesh (GREEN overlay - borders, mouth)
     drawCustomFaceMesh(canvasCtx, landmarks, canvasElement.width, canvasElement.height, mouthOpen, feedback);
+    
+    // Draw teeth detections (WHITE overlay) with real-time tracking
+    // This transforms cached detections to follow face movement smoothly at 30fps
+    if (SHOW_TOOTH_OVERLAY && teethTrackingCache && teethTrackingCache.detections.length > 0) {
+      // Transform cached detections to current mouth position for smooth tracking
+      const transformedTeeth = transformTeethToCurrentMouth(
+        teethTrackingCache,
+        landmarks,
+        canvasElement.width,
+        canvasElement.height
+      );
+      drawTeethDetections(canvasCtx, transformedTeeth);
+    }
   } else {
     faceDetected = false;
     mouthOpen = false;
     currentLandmarks = null;
     currentTeethDetections = [];
+    teethTrackingCache = null; // Clear tracking cache when face is lost
     faceStatus.textContent = t('noFace');
     faceStatus.style.color = '#ef4444';
     analysisStatus.parentElement?.classList.remove('ready', 'not-ready');
@@ -1451,10 +1567,71 @@ function onStageFaceMeshResults(results: any) {
       stageCaptureBtn.disabled = true;
     }
 
-    // Determine marker color - turn green when ready
+    // Run ONNX teeth detection BEFORE drawing overlays (for clean inference)
+    if (ENABLE_TOOTH_DETECTION && isONNXReady() && !stageIsDetecting) {
+      const now = Date.now();
+      if (now - stageLastDetectTime > TOOTH_DETECTION_INTERVAL) {
+        stageLastDetectTime = now;
+        stageIsDetecting = true;
+        
+        // Get clean ImageData BEFORE overlays are drawn
+        const imageData = canvasCtx.getImageData(0, 0, stageOverlay.width, stageOverlay.height);
+        
+        // Run ONNX detection (640x640 - model's fixed input size)
+        detectTeethONNX(imageData).then(detections => {
+          // Filter detections to mouth region only
+          const filteredDetections = filterDetectionsInMouthRegion(
+            detections, 
+            landmarks, 
+            stageOverlay.width, 
+            stageOverlay.height
+          );
+          
+          // Cache detections with current mouth position for real-time tracking
+          const upperLip = landmarks[13];
+          const lowerLip = landmarks[14];
+          const leftMouth = landmarks[61];
+          const rightMouth = landmarks[291];
+          
+          if (upperLip && lowerLip && leftMouth && rightMouth) {
+            stageTeethTrackingCache = {
+              detections: filteredDetections,
+              referenceMouthCenter: {
+                x: ((leftMouth.x + rightMouth.x) / 2) * stageOverlay.width,
+                y: ((upperLip.y + lowerLip.y) / 2) * stageOverlay.height
+              },
+              referenceMouthWidth: Math.abs((rightMouth.x - leftMouth.x) * stageOverlay.width),
+              referenceMouthHeight: Math.abs((lowerLip.y - upperLip.y) * stageOverlay.height)
+            };
+          }
+          
+          stageTeethDetections = filteredDetections;
+          stageIsDetecting = false;
+        }).catch(err => {
+          console.error('[DEBUG] Stage teeth detection failed:', err);
+          stageIsDetecting = false;
+        });
+      }
+    }
+    
+    // Draw dental overlay (GREEN overlay - borders, mouth)
     drawDentalOverlay(canvasCtx, landmarks, stageOverlay.width, stageOverlay.height, stageReady, currentStage.id, validation.feedback);
+    
+    // Draw teeth detections (WHITE overlay) with real-time tracking
+    if (SHOW_TOOTH_OVERLAY && stageTeethTrackingCache && stageTeethTrackingCache.detections.length > 0) {
+      // Transform cached detections to current mouth position
+      const transformedTeeth = transformTeethToCurrentMouth(
+        stageTeethTrackingCache,
+        landmarks,
+        stageOverlay.width,
+        stageOverlay.height
+      );
+      drawTeethDetections(canvasCtx, transformedTeeth);
+    }
   } else {
     stageLandmarks = null; stageReady = false;
+    stageTeethDetections = [];
+    stageTeethTrackingCache = null; // Clear tracking cache when face is lost
     stageReadyBadge.classList.remove('ready');
     stageReadyBadge.classList.add('not-ready');
     stageReadyText.textContent = t('noFace');
@@ -1805,6 +1982,7 @@ async function retry() {
   if (camera) { (camera as any).stop(); camera = null; }
   if (stageCamera) (stageCamera as any).stop(); stageCamera = null;
   pendingDentalAnalysis = null; stageCaptures = [null, null, null, null]; activeStageIndex = 0;
+  teethTrackingCache = null; stageTeethTrackingCache = null; // Clear tracking caches
   
   // Reset form and camera card visibility
   const captureCard = document.querySelector('.capture4-card') as HTMLElement;
@@ -1844,7 +2022,17 @@ retryBtn.addEventListener('click', retry);
 async function initializeApp() {
   console.log('[DEBUG] Beame Teeth Straightener initialized');
   if (ENABLE_TOOTH_DETECTION) {
-    try { await loadONNXModel(ONNX_MODEL_PATH); console.log('Tooth detection ready!'); } catch (error) { console.error('Failed to load model', error); }
+    console.log('[DEBUG] Loading ONNX tooth detection model...');
+    console.log('[DEBUG] Model path:', ONNX_MODEL_PATH);
+    try { 
+      await loadONNXModel(ONNX_MODEL_PATH); 
+      console.log('[DEBUG] ✓ Tooth detection model loaded successfully!');
+      console.log('[DEBUG] ONNX ready:', isONNXReady());
+    } catch (error) { 
+      console.error('[DEBUG] ✗ Failed to load tooth detection model:', error); 
+    }
+  } else {
+    console.log('[DEBUG] Tooth detection disabled');
   }
   enableDiagnostics();
   const existingSession = loadCurrentSession();
