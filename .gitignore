@@ -1,16 +1,57 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
+build/
+dist/
+
+# Misc
+.DS_Store
 .env
 .env.local
-.DS_Store
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Training artifacts (too large for GitHub)
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Model training outputs
 runs/
-teeth-2/
-train_teeth_model.py
-*.pt
-datasets/
-Training Data/
+datasets/temp_extraction/
+datasets/teeth-seg-combined/
+datasets/teeth-obb/
 
-# Keep the final ONNX model for deployment
-# public/models/*.onnx is NOT ignored (we need it!)
+# Model files (too large for git)
+*.pt
+*.pth
+*.weights
+*.onnx.bak
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# OS
+Thumbs.db

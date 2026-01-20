@@ -1,105 +1,80 @@
-# Beame Teeth Straightener
+# Beame Straight
 
-AI-powered teeth straightening app with real-time tooth detection and treatment planning.
+AI-powered teeth alignment analysis application with real-time browser-based inference.
 
-## Features
-
-- 🦷 **Real-time Tooth Detection** - Individual tooth detection using ONNX (runs in browser)
-- 🎨 **3D Visualization** - Interactive 3D dental arch visualization
-- 🤖 **AI Treatment Planning** - Powered by Google Gemini AI
-- 📸 **Facial Analysis** - MediaPipe-powered face mesh tracking
-- 🌐 **Bilingual** - English & Traditional Chinese support
-
-## Tech Stack
-
-- **Frontend:** Vite + TypeScript
-- **ML:** ONNX Runtime Web (browser-based inference)
-- **Face Tracking:** MediaPipe Face Mesh
-- **3D Rendering:** Three.js
-- **AI:** Google Gemini API
-
-## Deployment
-
-### Vercel (Recommended)
-
-1. **Fork/Clone this repo**
-
-2. **Import to Vercel:**
-   - Go to [vercel.com](https://vercel.com)
-   - Click "Add New Project"
-   - Import from GitHub: `https://github.com/flxnaf/beamestraight`
-
-3. **Environment Variables:**
-   Add these in Vercel dashboard:
-   ```
-   VITE_GEMINI_API_KEY=your_gemini_api_key
-   ```
-
-4. **Build Settings (Auto-detected):**
-   - Framework Preset: **Vite**
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
-   - Install Command: `npm install`
-
-5. **Deploy!** 🚀
-
-### Local Development
+## Quick Start
 
 ```bash
 # Install dependencies
 npm install
 
-# Add environment variables
-cp env.example .env
-# Edit .env with your API keys
-
-# Run dev server
+# Run development server
 npm run dev
-
-# Build for production
-npm run build
 ```
 
-## Environment Variables
+## Project Structure
 
-```env
-# Required for treatment planning
-VITE_GEMINI_API_KEY=your_gemini_api_key_here
-
-# Optional: If you want to use Roboflow API (for cloud training)
-# Local ONNX inference works without these
-VITE_ROBOFLOW_API_KEY=your_roboflow_key
-VITE_ROBOFLOW_MODEL_ID=your_model_id
-```
-
-## Tooth Detection
-
-The app uses **local ONNX inference** for tooth detection:
-- ✅ Runs entirely in browser (no API calls)
-- ✅ 30 FPS real-time detection
-- ✅ Works offline
-- ✅ Privacy-preserving (data never leaves browser)
-
-Model file: `public/models/teeth-detection.onnx` (included in repo)
-
-## Architecture
+See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for detailed organization.
 
 ```
-/
-├── analysis/           # Main analysis app
-│   ├── main.ts        # Core webcam & detection logic
-│   ├── services/      # ML, analysis, storage
-│   └── components/    # 3D visualization
-├── landing/           # Marketing pages
-├── public/
-│   └── models/        # ONNX model (6MB)
-└── aligner.vue        # Legacy Vue component
+beamestraight/
+├── analysis/          # Main teeth analysis app
+├── landing/           # Landing page
+├── public/models/     # ONNX models for inference
+├── training/          # Model training scripts
+├── datasets/          # Training data
+├── docs/              # Documentation
+└── scripts/           # Utility scripts
 ```
+
+## Features
+
+- **Real-time teeth detection** using YOLOv8 segmentation
+- **Browser-based inference** with ONNX Runtime (~50-80ms)
+- **Accurate tooth segmentation** (86% mAP50)
+- **Treatment planning** with arch analysis
+
+## Model Training
+
+To train a new model:
+
+```bash
+cd training
+python prepare_and_train_segmentation.py
+```
+
+## Export to ONNX
+
+**Local:**
+```bash
+python export_to_onnx_simple.py training/teeth_seg_final_best.pt
+```
+
+**Google Colab:**
+Upload `export_onnx_colab.ipynb` to Colab and follow instructions.
+
+## Current Model
+
+- **Type**: YOLOv8n-seg (segmentation)
+- **Dataset**: 510 images, 6,660 teeth
+- **Performance**: 86% mAP50
+- **Size**: 3.3 MB (ONNX)
+- **Input**: 320x320 pixels
+- **Inference**: ~50-80ms in browser
+
+## Tech Stack
+
+- **Frontend**: TypeScript, Vite
+- **Inference**: ONNX Runtime Web
+- **Training**: PyTorch, Ultralytics YOLOv8
+- **Annotation**: Label Studio (COCO format)
+
+## Documentation
+
+- [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) - Complete project organization
+- [docs/SEGMENTATION_SETUP.md](./docs/SEGMENTATION_SETUP.md) - Training setup guide
+- [docs/TRAIN_WINDOWS.md](./docs/TRAIN_WINDOWS.md) - Windows-specific training notes
 
 ## License
 
-MIT
-
-## Credits
-
-Built with ❤️ by Beame
+Proprietary - Beame

@@ -3,7 +3,7 @@ Simple ONNX Export Script
 Works on Windows, Mac, or Linux
 
 Usage:
-    python export_to_onnx_simple.py path/to/best.pt
+    python export_to_onnx_simple.py training/teeth_seg_final_best.pt
 """
 
 import sys
