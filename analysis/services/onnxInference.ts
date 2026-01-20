@@ -50,12 +50,12 @@ export async function loadONNXModel(modelPath: string): Promise<void> {
 }
 
 /**
- * Run inference on image
+ * Run inference on image - Using 320x320 for FAST inference
  */
 export async function detectTeethONNX(
   imageData: ImageData,
-  inputWidth: number = 640,
-  inputHeight: number = 640
+  inputWidth: number = 320,
+  inputHeight: number = 320
 ): Promise<Detection[]> {
   if (!session) {
     console.warn('[DEBUG] ONNX model not loaded yet');
@@ -155,7 +155,7 @@ function postprocessResults(
   
   const scaleX = originalWidth / inputWidth;
   const scaleY = originalHeight / inputHeight;
-  const confidenceThreshold = 0.55; // Balanced threshold - shows most teeth without too many false positives
+  const confidenceThreshold = 0.45; // Lowered for segmentation model - more sensitive
   
   try {
     // YOLOv8 uses transposed format: data is stored as [features, boxes]
@@ -202,7 +202,7 @@ function postprocessResults(
   }
   
   // Apply Non-Maximum Suppression to remove overlapping detections
-  const nmsDetections = applyNMS(detections, 0.2); // IOU threshold of 0.2 (more aggressive - less overlap)
+  const nmsDetections = applyNMS(detections, 0.25); // IOU threshold of 0.25 (balanced for segmentation)
   
   return nmsDetections;
 }

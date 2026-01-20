@@ -303,7 +303,7 @@ interface ToothDetection {
 
 let currentTeethDetections: ToothDetection[] = [];
 let lastToothDetectionTime = 0;
-const TOOTH_DETECTION_INTERVAL = 1500; // Run inference every 1.5s (smooth camera + accurate teeth tracking)
+const TOOTH_DETECTION_INTERVAL = 1000; // Run inference every 1s (FAST 320x320 model)
 let isDetecting = false; // Prevent overlapping API calls
 
 // Cache for real-time tooth tracking
@@ -506,10 +506,10 @@ function filterDetectionsInMouthRegion(
   });
 }
 
-// Draw smooth tooth overlays (professional Smileset-style)
+// Draw smooth tooth overlays (professional Smileset-style) - NO numbers for cleaner UI
 function drawTeethDetections(ctx: CanvasRenderingContext2D, detections: ToothDetection[]) {
   if (SHOW_TOOTH_OVERLAY) {
-    drawSmoothToothOverlay(ctx, detections, true);
+    drawSmoothToothOverlay(ctx, detections, false); // false = no tooth numbers
   }
 }
 
@@ -855,8 +855,8 @@ function onFaceMeshResults(results: any) {
         // Get clean ImageData BEFORE overlays are drawn
         const imageData = canvasCtx.getImageData(0, 0, canvasElement.width, canvasElement.height);
         
-        // Run ONNX detection (640x640 - model's fixed input size)
-        detectTeethONNX(imageData).then(detections => {
+        // Run ONNX detection (320x320 - FAST model)
+        detectTeethONNX(imageData, 320, 320).then(detections => {
           // Filter detections to mouth region only
           const filteredDetections = filterDetectionsInMouthRegion(
             detections, 
@@ -1577,8 +1577,8 @@ function onStageFaceMeshResults(results: any) {
         // Get clean ImageData BEFORE overlays are drawn
         const imageData = canvasCtx.getImageData(0, 0, stageOverlay.width, stageOverlay.height);
         
-        // Run ONNX detection (640x640 - model's fixed input size)
-        detectTeethONNX(imageData).then(detections => {
+        // Run ONNX detection (320x320 - FAST model)
+        detectTeethONNX(imageData, 320, 320).then(detections => {
           // Filter detections to mouth region only
           const filteredDetections = filterDetectionsInMouthRegion(
             detections, 

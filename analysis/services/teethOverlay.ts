@@ -23,81 +23,90 @@ interface ToothDetection {
 export function drawSmoothToothOverlay(
   ctx: CanvasRenderingContext2D,
   detections: ToothDetection[],
-  showNumbers: boolean = true
+  showNumbers: boolean = false // Disabled by default for cleaner look
 ): void {
   if (detections.length === 0) return;
 
   detections.forEach((tooth) => {
-    // Convert box to 4-point polygon with slightly inset corners for more tooth-like shape
-    const insetX = tooth.width * 0.05; // 5% inset horizontally
-    const insetY = tooth.height * 0.02; // 2% inset vertically (less round)
+    // Convert box to 4-point polygon with inset corners for tooth-like shape
+    const insetX = tooth.width * 0.08; // 8% inset for more rounded tooth shape
+    const insetY = tooth.height * 0.06; // 6% inset vertically
     
     const corners: Point[] = [
-      { x: tooth.x + insetX, y: tooth.y + insetY }, // Top-left
-      { x: tooth.x + tooth.width - insetX, y: tooth.y + insetY }, // Top-right
-      { x: tooth.x + tooth.width - insetX, y: tooth.y + tooth.height - insetY }, // Bottom-right
-      { x: tooth.x + insetX, y: tooth.y + tooth.height - insetY } // Bottom-left
+      { x: tooth.x + insetX, y: tooth.y + insetY },
+      { x: tooth.x + tooth.width - insetX, y: tooth.y + insetY },
+      { x: tooth.x + tooth.width - insetX, y: tooth.y + tooth.height - insetY },
+      { x: tooth.x + insetX, y: tooth.y + tooth.height - insetY }
     ];
 
     // Draw smooth curved polygon
     ctx.save();
     
-    // Optimized rendering - reduced shadow blur for performance
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.4)';
-    ctx.shadowBlur = 6; // Reduced from 12 for performance
+    // Prettier glow effect (optimized)
+    ctx.shadowColor = 'rgba(0, 206, 124, 0.6)';
+    ctx.shadowBlur = 8;
     
-    // Draw tooth shape (slightly rounded corners but not overly smooth)
+    // Draw tooth shape with smooth curves
     ctx.beginPath();
-    drawSmoothPolygon(ctx, corners, 0.15); // Reduced tension from 0.3 to 0.15 for less roundness
+    drawSmoothPolygon(ctx, corners, 0.25); // Increased tension for smoother, more natural curves
     ctx.closePath();
     
-    // Fill with less opacity to reduce visual overlap
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.20)';
+    // Gradient fill for depth
+    const centerX = tooth.x + tooth.width / 2;
+    const centerY = tooth.y + tooth.height / 2;
+    const gradient = ctx.createRadialGradient(
+      centerX, centerY, 0,
+      centerX, centerY, Math.max(tooth.width, tooth.height) / 2
+    );
+    gradient.addColorStop(0, 'rgba(0, 206, 124, 0.35)');
+    gradient.addColorStop(1, 'rgba(0, 206, 124, 0.15)');
+    ctx.fillStyle = gradient;
     ctx.fill();
     
-    // Stroke with sharper lines
+    // Bright stroke for definition
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.90)';
+    ctx.strokeStyle = 'rgba(0, 206, 124, 0.95)';
     ctx.lineWidth = 2.5;
     ctx.stroke();
     
-    // Draw tooth number badge
+    // Inner highlight for 3D effect
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    
+    // Optional tooth number badge (cleaner UI without numbers by default)
     if (showNumbers && tooth.toothNumber) {
-      const centerX = tooth.x + tooth.width / 2;
-      const badgeY = tooth.y - 8;
+      const badgeY = tooth.y - 10;
       
       ctx.shadowColor = 'rgba(0, 206, 124, 0.8)';
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = 6;
       
       // Badge circle
       ctx.beginPath();
-      ctx.arc(centerX, badgeY, 14, 0, Math.PI * 2);
+      ctx.arc(centerX, badgeY, 12, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0, 206, 124, 0.95)';
       ctx.fill();
       
       // Badge border
       ctx.shadowBlur = 0;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
       ctx.lineWidth = 1.5;
       ctx.stroke();
       
       // Tooth number text
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 11px -apple-system, sans-serif';
+      ctx.font = 'bold 10px -apple-system, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(tooth.toothNumber, centerX, badgeY + 1);
+      ctx.fillText(tooth.toothNumber, centerX, badgeY);
     }
     
     ctx.restore();
   });
-  
-  // Stats panel (optional - comment out for better performance)
-  // drawStatsPanel(ctx, detections.length, ctx.canvas.width, ctx.canvas.height);
 }
 
 /**
- * Draw smooth curved polygon using cardinal splines
+ * Draw smooth curved polygon using cardinal splines (optimized for performance)
  */
 function drawSmoothPolygon(
   ctx: CanvasRenderingContext2D,
@@ -106,22 +115,24 @@ function drawSmoothPolygon(
 ): void {
   if (points.length < 3) {
     ctx.moveTo(points[0].x, points[0].y);
-    points.forEach((p, i) => {
-      if (i > 0) ctx.lineTo(p.x, p.y);
-    });
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
     return;
   }
 
   const closedPoints = [...points, points[0], points[1]];
   ctx.moveTo(closedPoints[0].x, closedPoints[0].y);
   
+  // Optimized loop - pre-calculate control points
   for (let i = 0; i < points.length; i++) {
     const p0 = closedPoints[i];
     const p1 = closedPoints[i + 1];
     const p2 = closedPoints[i + 2];
+    const pm1 = closedPoints[Math.max(0, i - 1)];
     
-    const cp1x = p0.x + (p1.x - closedPoints[Math.max(0, i - 1)].x) * tension;
-    const cp1y = p0.y + (p1.y - closedPoints[Math.max(0, i - 1)].y) * tension;
+    const cp1x = p0.x + (p1.x - pm1.x) * tension;
+    const cp1y = p0.y + (p1.y - pm1.y) * tension;
     const cp2x = p1.x - (p2.x - p0.x) * tension;
     const cp2y = p1.y - (p2.y - p0.y) * tension;
     
