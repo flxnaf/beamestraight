@@ -3,7 +3,7 @@ Simple ONNX Export Script
 Works on Windows, Mac, or Linux
 
 Usage:
-    python export_to_onnx_simple.py training/teeth_seg_final_best.pt
+    python export_to_onnx_simple.py training/teeth_seg_640x640_best.pt
 """
 
 import sys
@@ -46,7 +46,7 @@ print(f"File size: {size_mb:.2f} MB")
 
 # Copy to public/models
 import shutil
-output_path = Path("public/models/teeth-detection-seg.onnx")
+output_path = Path("public/models/teeth_seg_640x640.onnx")
 output_path.parent.mkdir(parents=True, exist_ok=True)
 shutil.copy2(onnx_path, output_path)
 print(f"\n✓ Copied to: {output_path}")

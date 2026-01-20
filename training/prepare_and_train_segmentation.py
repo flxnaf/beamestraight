@@ -23,7 +23,7 @@ TEMP_DIR = Path("datasets/temp_extraction")
 
 # Training Configuration
 MODEL_SIZE = "n"  # nano - best for browser
-EPOCHS = 100
+EPOCHS = 200
 BATCH_SIZE = 8  # Reduced for 640x640 (uses more VRAM)
 IMAGE_SIZE = 640  # Standard YOLO size - better quality for teeth details
 PROJECT_NAME = "runs/segment"
@@ -382,7 +382,7 @@ def train_model(data_yaml):
         val=True,
         plots=True,
         save=True,
-        cache='ram',
+        cache=False,  # Disabled for 640x640 (too much RAM)
         
         # Early stopping
         patience=15,
