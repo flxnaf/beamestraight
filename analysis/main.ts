@@ -25,7 +25,7 @@ const USE_FALLBACK_MODE = true; // Set to false to enable real AI generation
 const _genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
 
 // LOCAL TOOTH DETECTION (ONNX - Runs in browser!)
-const ONNX_MODEL_PATH = import.meta.env.VITE_ONNX_MODEL_PATH || '/models/teeth-detection-seg.onnx';
+const ONNX_MODEL_PATH = import.meta.env.VITE_ONNX_MODEL_PATH || '/models/teeth_seg_640x640.onnx';
 const ENABLE_TOOTH_DETECTION = true; // ENABLED: Segmentation model with smooth overlays
 const SHOW_TOOTH_OVERLAY = true; // ENABLED: Show beautiful tooth overlays
 
