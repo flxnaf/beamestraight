@@ -35,6 +35,8 @@ runs/
 datasets/temp_extraction/
 datasets/teeth-seg-combined/
 datasets/teeth-obb/
+datasets/teeth-seg-finalset/
+Training Data/
 
 # Model files (too large for git)
 *.pt

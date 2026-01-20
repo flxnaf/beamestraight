@@ -42,63 +42,51 @@ export function drawSmoothToothOverlay(
     // Draw smooth curved polygon
     ctx.save();
     
-    // Prettier glow effect (optimized)
-    ctx.shadowColor = 'rgba(0, 206, 124, 0.6)';
+    // White glow effect (clean and professional)
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
     ctx.shadowBlur = 8;
     
     // Draw tooth shape with smooth curves
     ctx.beginPath();
-    drawSmoothPolygon(ctx, corners, 0.25); // Increased tension for smoother, more natural curves
+    drawSmoothPolygon(ctx, corners, 0.25);
     ctx.closePath();
     
-    // Gradient fill for depth
+    // White gradient fill for natural tooth look
     const centerX = tooth.x + tooth.width / 2;
     const centerY = tooth.y + tooth.height / 2;
     const gradient = ctx.createRadialGradient(
       centerX, centerY, 0,
       centerX, centerY, Math.max(tooth.width, tooth.height) / 2
     );
-    gradient.addColorStop(0, 'rgba(0, 206, 124, 0.35)');
-    gradient.addColorStop(1, 'rgba(0, 206, 124, 0.15)');
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.15)');
     ctx.fillStyle = gradient;
     ctx.fill();
     
-    // Bright stroke for definition
+    // Bright white stroke for definition
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(0, 206, 124, 0.95)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
     ctx.lineWidth = 2.5;
     ctx.stroke();
     
     // Inner highlight for 3D effect
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
     
-    // Optional tooth number badge (cleaner UI without numbers by default)
-    if (showNumbers && tooth.toothNumber) {
-      const badgeY = tooth.y - 10;
-      
-      ctx.shadowColor = 'rgba(0, 206, 124, 0.8)';
-      ctx.shadowBlur = 6;
-      
-      // Badge circle
-      ctx.beginPath();
-      ctx.arc(centerX, badgeY, 12, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0, 206, 124, 0.95)';
-      ctx.fill();
-      
-      // Badge border
+    // Show confidence for debugging (temporary)
+    if (showNumbers) {
+      const confY = tooth.y - 8;
       ctx.shadowBlur = 0;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      
-      // Tooth number text
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 10px -apple-system, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(tooth.toothNumber, centerX, badgeY);
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.lineWidth = 3;
+      const confText = (tooth.confidence * 100).toFixed(0) + '%';
+      ctx.strokeText(confText, centerX, confY);
+      ctx.fillText(confText, centerX, confY);
     }
     
     ctx.restore();

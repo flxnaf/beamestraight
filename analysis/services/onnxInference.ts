@@ -50,12 +50,12 @@ export async function loadONNXModel(modelPath: string): Promise<void> {
 }
 
 /**
- * Run inference on image - Using 320x320 for FAST inference
+ * Run inference on image - Using 640x640 for QUALITY (teeth need details!)
  */
 export async function detectTeethONNX(
   imageData: ImageData,
-  inputWidth: number = 320,
-  inputHeight: number = 320
+  inputWidth: number = 640,
+  inputHeight: number = 640
 ): Promise<Detection[]> {
   if (!session) {
     console.warn('[DEBUG] ONNX model not loaded yet');
@@ -145,21 +145,23 @@ function postprocessResults(
   const outputData = output.data;
   const dims = output.dims;
   
-  // YOLOv8 format: [1, 84, 8400]
+  // YOLOv8-seg format: [1, 116, 2100] for 320x320
   // - dims[0] = batch (1)
-  // - dims[1] = features (4 bbox + 80 classes = 84)
-  // - dims[2] = num_boxes (8400)
+  // - dims[1] = features (4 bbox + 1 class + 32 mask coeffs = 37 for single class, or 116 for 80 classes)
+  // - dims[2] = num_boxes (2100 for 320x320, 8400 for 640x640)
   
-  const numFeatures = dims[1]; // 84
-  const numBoxes = dims[2]; // 8400
+  console.log('[DEBUG] Model output dims:', dims);
+  
+  const numFeatures = dims[1];
+  const numBoxes = dims[2];
   
   const scaleX = originalWidth / inputWidth;
   const scaleY = originalHeight / inputHeight;
-  const confidenceThreshold = 0.45; // Lowered for segmentation model - more sensitive
+  const confidenceThreshold = 0.25; // Lower threshold for segmentation model (they tend to be more conservative)
   
   try {
-    // YOLOv8 uses transposed format: data is stored as [features, boxes]
-    // For each box, we need to read: [x, y, w, h, class_scores...]
+    // YOLOv8-seg transposed format: data is stored as [features, boxes]
+    // For 1-class model at 320x320: [1, 37, 2100] where 37 = 4 bbox + 1 class + 32 mask coeffs
     
     for (let boxIdx = 0; boxIdx < numBoxes; boxIdx++) {
       // Get bbox coordinates (first 4 features)
@@ -168,11 +170,10 @@ function postprocessResults(
       const width = outputData[numBoxes * 2 + boxIdx]; // Feature 2
       const height = outputData[numBoxes * 3 + boxIdx]; // Feature 3
       
-      // Get class scores (features 4-83 for 80 classes)
-      // For single-class (tooth), just use first class score
+      // Get class score (feature 4 for single-class model)
       const classScore = outputData[numBoxes * 4 + boxIdx]; // Feature 4
       
-      // YOLOv8 typically outputs raw logits - always apply sigmoid
+      // Apply sigmoid to get confidence
       const confidence = 1 / (1 + Math.exp(-classScore));
       
       if (confidence > confidenceThreshold) {
@@ -187,15 +188,16 @@ function postprocessResults(
           y: y - h / 2,
           width: w,
           height: h,
-          confidence: confidence, // Now properly 0-1
+          confidence: confidence,
           class: 'tooth'
         });
       }
     }
     
-    // Reduced logging for performance
+    console.log(`[DEBUG] Raw detections: ${detections.length}, Threshold: ${confidenceThreshold}`);
     if (detections.length > 0) {
-      console.log(`[DEBUG] Detected ${detections.length} → NMS filtering...`);
+      const avgConf = detections.reduce((sum, d) => sum + d.confidence, 0) / detections.length;
+      console.log(`[DEBUG] Avg confidence: ${avgConf.toFixed(3)}, Range: ${Math.min(...detections.map(d => d.confidence)).toFixed(3)}-${Math.max(...detections.map(d => d.confidence)).toFixed(3)}`);
     }
   } catch (error) {
     console.error('[DEBUG] Error parsing YOLO output:', error);

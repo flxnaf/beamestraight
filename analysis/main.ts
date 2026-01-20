@@ -466,17 +466,16 @@ function filterDetectionsInMouthRegion(
   width: number, 
   height: number
 ): ToothDetection[] {
-  // Get mouth bounding box from MediaPipe landmarks
-  const mouthLandmarks = [
-    61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, // Outer lips
-    78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308,  // Upper teeth
-    78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308   // Lower teeth
+  // Get mouth bounding box from MediaPipe landmarks (only teeth area, not whole face)
+  const teethLandmarks = [
+    78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308,  // Upper teeth line
+    78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308   // Lower teeth line
   ];
 
-  // Calculate mouth bounding box with padding
+  // Calculate tight mouth bounding box
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   
-  mouthLandmarks.forEach(idx => {
+  teethLandmarks.forEach(idx => {
     if (landmarks[idx]) {
       const x = landmarks[idx].x * width;
       const y = landmarks[idx].y * height;
@@ -487,29 +486,41 @@ function filterDetectionsInMouthRegion(
     }
   });
 
-  // Add padding to mouth region (10% on each side)
-  const padding = Math.max(maxX - minX, maxY - minY) * 0.1;
-  minX -= padding;
-  maxX += padding;
-  minY -= padding;
-  maxY += padding;
+  // Add minimal padding (5% instead of 10% - more restrictive)
+  const paddingX = (maxX - minX) * 0.05;
+  const paddingY = (maxY - minY) * 0.05;
+  minX -= paddingX;
+  maxX += paddingX;
+  minY -= paddingY;
+  maxY += paddingY;
 
-  // Filter detections: only keep teeth whose center is within mouth region
+  // Filter: BOTH center AND majority of box must be in mouth region
   return detections.filter(tooth => {
     const centerX = tooth.x + tooth.width / 2;
     const centerY = tooth.y + tooth.height / 2;
     
-    const isInMouth = centerX >= minX && centerX <= maxX && 
-                      centerY >= minY && centerY <= maxY;
+    // Check if center is in mouth
+    const centerInMouth = centerX >= minX && centerX <= maxX && 
+                          centerY >= minY && centerY <= maxY;
     
-    return isInMouth;
+    // Check if at least 60% of the box overlaps with mouth region
+    const overlapX1 = Math.max(tooth.x, minX);
+    const overlapY1 = Math.max(tooth.y, minY);
+    const overlapX2 = Math.min(tooth.x + tooth.width, maxX);
+    const overlapY2 = Math.min(tooth.y + tooth.height, maxY);
+    
+    const overlapArea = Math.max(0, overlapX2 - overlapX1) * Math.max(0, overlapY2 - overlapY1);
+    const toothArea = tooth.width * tooth.height;
+    const overlapRatio = overlapArea / toothArea;
+    
+    return centerInMouth && overlapRatio > 0.6;
   });
 }
 
-// Draw smooth tooth overlays (professional Smileset-style) - NO numbers for cleaner UI
+// Draw smooth tooth overlays (professional Smileset-style) - SHOW confidence for debugging
 function drawTeethDetections(ctx: CanvasRenderingContext2D, detections: ToothDetection[]) {
   if (SHOW_TOOTH_OVERLAY) {
-    drawSmoothToothOverlay(ctx, detections, false); // false = no tooth numbers
+    drawSmoothToothOverlay(ctx, detections, true); // true = show confidence percentages for debugging
   }
 }
 
@@ -855,8 +866,8 @@ function onFaceMeshResults(results: any) {
         // Get clean ImageData BEFORE overlays are drawn
         const imageData = canvasCtx.getImageData(0, 0, canvasElement.width, canvasElement.height);
         
-        // Run ONNX detection (320x320 - FAST model)
-        detectTeethONNX(imageData, 320, 320).then(detections => {
+        // Run ONNX detection (640x640 - QUALITY model for teeth details)
+        detectTeethONNX(imageData, 640, 640).then(detections => {
           // Filter detections to mouth region only
           const filteredDetections = filterDetectionsInMouthRegion(
             detections, 
@@ -1577,8 +1588,8 @@ function onStageFaceMeshResults(results: any) {
         // Get clean ImageData BEFORE overlays are drawn
         const imageData = canvasCtx.getImageData(0, 0, stageOverlay.width, stageOverlay.height);
         
-        // Run ONNX detection (320x320 - FAST model)
-        detectTeethONNX(imageData, 320, 320).then(detections => {
+        // Run ONNX detection (640x640 - QUALITY model for teeth details)
+        detectTeethONNX(imageData, 640, 640).then(detections => {
           // Filter detections to mouth region only
           const filteredDetections = filterDetectionsInMouthRegion(
             detections, 

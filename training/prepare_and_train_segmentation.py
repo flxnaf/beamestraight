@@ -24,10 +24,10 @@ TEMP_DIR = Path("datasets/temp_extraction")
 # Training Configuration
 MODEL_SIZE = "n"  # nano - best for browser
 EPOCHS = 100
-BATCH_SIZE = 16  # Good for RTX 3070 Ti
-IMAGE_SIZE = 320  # Fast inference
+BATCH_SIZE = 8  # Reduced for 640x640 (uses more VRAM)
+IMAGE_SIZE = 640  # Standard YOLO size - better quality for teeth details
 PROJECT_NAME = "runs/segment"
-EXPERIMENT_NAME = "teeth_seg_final"
+EXPERIMENT_NAME = "teeth_seg_640"
 OUTPUT_ONNX_PATH = Path("public/models/teeth-detection-seg.onnx")
 
 def install_dependencies():

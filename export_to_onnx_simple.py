@@ -32,7 +32,7 @@ print(f"Task: {model.task}")
 print("\nExporting to ONNX...")
 onnx_path = model.export(
     format="onnx",
-    imgsz=320,
+    imgsz=640,  # 640x640 for quality (teeth need details!)
     simplify=True,
     opset=12,
     dynamic=False,
