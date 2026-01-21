@@ -1,5 +1,0 @@
-names:
-  0: teeth
-path: C:\beamestraight\datasets\teeth-seg
-train: train/images
-val: val/images

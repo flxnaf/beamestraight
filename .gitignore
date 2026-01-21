@@ -57,3 +57,6 @@ pip-delete-this-directory.txt
 
 # OS
 Thumbs.db
+
+# Old/unused files
+oldmiscellaneous/

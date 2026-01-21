@@ -28,14 +28,15 @@ export async function loadONNXModel(modelPath: string): Promise<void> {
   console.log('[DEBUG] Loading ONNX model locally...');
   
   try {
-    // Configure ONNX Runtime for WebGL (GPU acceleration)
+    // Configure ONNX Runtime - WebGL for GPU acceleration
     ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
-    ort.env.wasm.numThreads = 1; // Single thread for better stability
+    ort.env.wasm.numThreads = 1; // WebGL doesn't use threads
     
-    // Load model with optimized settings
+    // Try WebGL first for GPU acceleration (faster for 640x640)
     session = await ort.InferenceSession.create(modelPath, {
-      executionProviders: ['webgl', 'wasm'], // Try GPU first, fallback to CPU
-      graphOptimizationLevel: 'all', // Enable all optimizations
+      executionProviders: ['webgl', 'wasm'], // GPU first, fallback to CPU
+      graphOptimizationLevel: 'all',
+      enableCpuMemArena: false, // Disable for WebGL
     });
     
     console.log('[DEBUG] ONNX model loaded successfully!');
@@ -63,19 +64,31 @@ export async function detectTeethONNX(
   }
 
   try {
-    // Preprocess image
-    const tensor = preprocessImage(imageData, inputWidth, inputHeight);
+    const { width: originalWidth, height: originalHeight } = imageData;
+    
+    // Calculate letterbox parameters to avoid stretching
+    const ratio = Math.min(inputWidth / originalWidth, inputHeight / originalHeight);
+    const newWidth = Math.round(originalWidth * ratio);
+    const newHeight = Math.round(originalHeight * ratio);
+    const offsetX = (inputWidth - newWidth) / 2;
+    const offsetY = (inputHeight - newHeight) / 2;
+
+    // Preprocess image with letterboxing
+    const tensor = preprocessImage(imageData, inputWidth, inputHeight, newWidth, newHeight, offsetX, offsetY);
     
     // Run inference
     const results = await session.run({ images: tensor });
     
-    // Post-process results
+    // Post-process results accounting for letterboxing
     const detections = postprocessResults(
       results,
-      imageData.width,
-      imageData.height,
+      originalWidth,
+      originalHeight,
       inputWidth,
-      inputHeight
+      inputHeight,
+      ratio,
+      offsetX,
+      offsetY
     );
     
     return detections;
@@ -86,57 +99,77 @@ export async function detectTeethONNX(
 }
 
 /**
- * Preprocess image for YOLO model
+ * Preprocess image for YOLO model with letterboxing (prevents stretching)
  */
+// Pre-allocated buffer for better performance
+let preprocessBuffer: Float32Array | null = null;
+let lastBufferSize = 0;
+
 function preprocessImage(
   imageData: ImageData,
   targetWidth: number,
-  targetHeight: number
+  targetHeight: number,
+  newWidth: number,
+  newHeight: number,
+  offsetX: number,
+  offsetY: number
 ): ort.Tensor {
   const { data, width, height } = imageData;
   
-  // Create Float32Array for model input [1, 3, height, width]
   const inputSize = targetWidth * targetHeight;
-  const r = new Float32Array(inputSize);
-  const g = new Float32Array(inputSize);
-  const b = new Float32Array(inputSize);
+  const totalSize = 3 * inputSize;
   
-  // Resize and normalize image
-  const scaleX = width / targetWidth;
-  const scaleY = height / targetHeight;
+  // Reuse buffer if same size
+  if (!preprocessBuffer || lastBufferSize !== totalSize) {
+    preprocessBuffer = new Float32Array(totalSize);
+    lastBufferSize = totalSize;
+  }
+  preprocessBuffer.fill(0.5); // Gray padding
   
-  for (let y = 0; y < targetHeight; y++) {
-    for (let x = 0; x < targetWidth; x++) {
-      const srcX = Math.floor(x * scaleX);
-      const srcY = Math.floor(y * scaleY);
-      const srcIdx = (srcY * width + srcX) * 4;
-      const dstIdx = y * targetWidth + x;
+  const scaleX = width / newWidth;
+  const scaleY = height / newHeight;
+  const offsetXInt = Math.floor(offsetX);
+  const offsetYInt = Math.floor(offsetY);
+  
+  // Optimized: single pass, direct indexing, multiply instead of divide
+  for (let y = 0; y < newHeight; y++) {
+    const dstY = y + offsetYInt;
+    if (dstY < 0 || dstY >= targetHeight) continue;
+    
+    const srcY = Math.floor(y * scaleY);
+    const srcRowIdx = srcY * width;
+    const dstRowIdx = dstY * targetWidth;
+    
+    for (let x = 0; x < newWidth; x++) {
+      const dstX = x + offsetXInt;
+      if (dstX < 0 || dstX >= targetWidth) continue;
       
-      // Normalize to [0, 1]
-      r[dstIdx] = data[srcIdx] / 255.0;
-      g[dstIdx] = data[srcIdx + 1] / 255.0;
-      b[dstIdx] = data[srcIdx + 2] / 255.0;
+      const srcX = Math.floor(x * scaleX);
+      const srcIdx = (srcRowIdx + srcX) * 4;
+      const dstIdx = dstRowIdx + dstX;
+      
+      // Multiply by 1/255 instead of divide (faster)
+      preprocessBuffer[dstIdx] = data[srcIdx] * 0.00392156862745098;
+      preprocessBuffer[inputSize + dstIdx] = data[srcIdx + 1] * 0.00392156862745098;
+      preprocessBuffer[inputSize * 2 + dstIdx] = data[srcIdx + 2] * 0.00392156862745098;
     }
   }
   
-  // Combine into single array [1, 3, height, width]
-  const inputArray = new Float32Array(1 * 3 * inputSize);
-  inputArray.set(r, 0);
-  inputArray.set(g, inputSize);
-  inputArray.set(b, inputSize * 2);
-  
-  return new ort.Tensor('float32', inputArray, [1, 3, targetHeight, targetWidth]);
+  return new ort.Tensor('float32', preprocessBuffer, [1, 3, targetHeight, targetWidth]);
 }
 
 /**
- * Post-process YOLOv8 output - CORRECTED for proper format
+ * Post-process YOLOv8 output - CORRECTED for letterboxing and confidence
  */
 function postprocessResults(
   results: any,
   originalWidth: number,
   originalHeight: number,
   inputWidth: number,
-  inputHeight: number
+  inputHeight: number,
+  ratio: number,
+  offsetX: number,
+  offsetY: number
 ): Detection[] {
   const detections: Detection[] = [];
   
@@ -145,43 +178,58 @@ function postprocessResults(
   const outputData = output.data;
   const dims = output.dims;
   
-  // YOLOv8-seg format: [1, 116, 2100] for 320x320
-  // - dims[0] = batch (1)
-  // - dims[1] = features (4 bbox + 1 class + 32 mask coeffs = 37 for single class, or 116 for 80 classes)
-  // - dims[2] = num_boxes (2100 for 320x320, 8400 for 640x640)
-  
-  console.log('[DEBUG] Model output dims:', dims);
-  
   const numFeatures = dims[1];
   const numBoxes = dims[2];
   
-  const scaleX = originalWidth / inputWidth;
-  const scaleY = originalHeight / inputHeight;
-  const confidenceThreshold = 0.25; // Lower threshold for segmentation model (they tend to be more conservative)
+  console.log('[DEBUG] Full output dims:', dims, 'Data length:', outputData.length);
+  console.log('[DEBUG] Sample raw values:', Array.from(outputData.slice(0, 20)));
+  
+  // Track confidence distribution for debugging
+  let maxConf = -Infinity;
+  let minConf = Infinity;
+  let allConfidences: number[] = [];
+  
+  // Optimized thresholds for 320x320 segmentation model
+  const confidenceThreshold = 0.16; // Catches lower teeth and partial teeth, filters noise
+  const iouThreshold = 0.28; // Strict NMS to prevent 3-layer artifacts while allowing separate layers
   
   try {
-    // YOLOv8-seg transposed format: data is stored as [features, boxes]
-    // For 1-class model at 320x320: [1, 37, 2100] where 37 = 4 bbox + 1 class + 32 mask coeffs
+    // First pass: collect confidence statistics
+    for (let boxIdx = 0; boxIdx < Math.min(numBoxes, 100); boxIdx++) {
+      const rawScore = outputData[numBoxes * 4 + boxIdx];
+      allConfidences.push(rawScore);
+      maxConf = Math.max(maxConf, rawScore);
+      minConf = Math.min(minConf, rawScore);
+    }
     
+    console.log(`[DEBUG] Confidence range (first 100 boxes): ${minConf.toFixed(3)} - ${maxConf.toFixed(3)}`);
+    
+    // Determine if scores need sigmoid
+    const needsSigmoid = maxConf > 1.0 || minConf < 0;
+    console.log(`[DEBUG] Scores need sigmoid: ${needsSigmoid}`);
+    
+    // Second pass: extract detections
     for (let boxIdx = 0; boxIdx < numBoxes; boxIdx++) {
-      // Get bbox coordinates (first 4 features)
-      const x_center = outputData[boxIdx]; // Feature 0
-      const y_center = outputData[numBoxes + boxIdx]; // Feature 1
-      const width = outputData[numBoxes * 2 + boxIdx]; // Feature 2
-      const height = outputData[numBoxes * 3 + boxIdx]; // Feature 3
+      // Get raw class score
+      let confidence = outputData[numBoxes * 4 + boxIdx];
       
-      // Get class score (feature 4 for single-class model)
-      const classScore = outputData[numBoxes * 4 + boxIdx]; // Feature 4
-      
-      // Apply sigmoid to get confidence
-      const confidence = 1 / (1 + Math.exp(-classScore));
+      // Apply sigmoid if needed
+      if (needsSigmoid) {
+        confidence = 1 / (1 + Math.exp(-confidence));
+      }
       
       if (confidence > confidenceThreshold) {
-        // Scale to original image size
-        const x = x_center * scaleX;
-        const y = y_center * scaleY;
-        const w = width * scaleX;
-        const h = height * scaleY;
+        // Get bbox coordinates (raw pixels in 640x640 space)
+        const x_center = outputData[boxIdx]; 
+        const y_center = outputData[numBoxes + boxIdx]; 
+        const w_raw = outputData[numBoxes * 2 + boxIdx]; 
+        const h_raw = outputData[numBoxes * 3 + boxIdx]; 
+        
+        // Remove letterbox offsets and scale back to original size
+        const x = (x_center - offsetX) / ratio;
+        const y = (y_center - offsetY) / ratio;
+        const w = w_raw / ratio;
+        const h = h_raw / ratio;
         
         detections.push({
           x: x - w / 2, // Convert center to top-left
@@ -197,15 +245,18 @@ function postprocessResults(
     console.log(`[DEBUG] Raw detections: ${detections.length}, Threshold: ${confidenceThreshold}`);
     if (detections.length > 0) {
       const avgConf = detections.reduce((sum, d) => sum + d.confidence, 0) / detections.length;
-      console.log(`[DEBUG] Avg confidence: ${avgConf.toFixed(3)}, Range: ${Math.min(...detections.map(d => d.confidence)).toFixed(3)}-${Math.max(...detections.map(d => d.confidence)).toFixed(3)}`);
+      const detMinConf = Math.min(...detections.map(d => d.confidence));
+      const detMaxConf = Math.max(...detections.map(d => d.confidence));
+      console.log(`[DEBUG] Detection confidences - Avg: ${avgConf.toFixed(3)}, Range: ${detMinConf.toFixed(3)}-${detMaxConf.toFixed(3)}`);
     }
   } catch (error) {
     console.error('[DEBUG] Error parsing YOLO output:', error);
   }
   
   // Apply Non-Maximum Suppression to remove overlapping detections
-  const nmsDetections = applyNMS(detections, 0.25); // IOU threshold of 0.25 (balanced for segmentation)
+  const nmsDetections = applyNMS(detections, iouThreshold);
   
+  console.log(`[DEBUG] Final detections after NMS: ${nmsDetections.length}`);
   return nmsDetections;
 }
 

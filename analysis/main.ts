@@ -19,15 +19,18 @@ import { loadONNXModel, detectTeethONNX, isONNXReady } from './services/onnxInfe
 import { drawSmoothToothOverlay } from './services/teethOverlay';
 
 // CONFIGURATION: Set to true to save API credits during development
-const USE_FALLBACK_MODE = true; // Set to false to enable real AI generation
+const USE_FALLBACK_MODE = false; // Set to false to enable real AI generation
 
 // Initialize Gemini AI (unused in fallback mode)
 const _genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
 
-// LOCAL TOOTH DETECTION (ONNX - Runs in browser!)
-const ONNX_MODEL_PATH = import.meta.env.VITE_ONNX_MODEL_PATH || '/models/teeth_seg_640x640.onnx';
-const ENABLE_TOOTH_DETECTION = true; // ENABLED: Segmentation model with smooth overlays
-const SHOW_TOOTH_OVERLAY = true; // ENABLED: Show beautiful tooth overlays
+// ============================================
+// TOOTH DETECTION CONFIGURATION
+// ============================================
+// Master switch: Set to false to completely disable white teeth overlay
+// This also skips all ONNX CV detection work (saves performance)
+const ENABLE_TEETH_OVERLAY = true; // Set to false to disable teeth detection & overlay
+const ONNX_MODEL_PATH = import.meta.env.VITE_ONNX_MODEL_PATH || '/models/teeth_seg_320x320.onnx';
 
 // Roboflow API (fallback only - slower)
 const ROBOFLOW_API_KEY = import.meta.env.VITE_ROBOFLOW_API_KEY || '';
@@ -79,10 +82,16 @@ if (currentLanguage.includes('en')) currentLanguage = 'en';
     lowerTeethInstruction: 'Open your mouth wide and tilt your head down slightly to show your lower teeth clearly.',
     upperTeethInstruction: 'Open your mouth wide and tilt your head up slightly to show your upper teeth clearly.',
     sideOpenInstruction: 'Turn your head significantly to the side and open your mouth wide to show your side teeth.',
+    getCloser: 'Get closer to camera',
+    tooClose: 'Move back slightly',
     centerMouth: 'Center mouth',
+    teethDetected: 'Teeth Detected',
+    tryGetMore: 'Try get as many tooth detected',
     lookStraight: 'Look straight',
     openWider: 'Open wider',
     openMuchWider: 'Open much wider',
+    closeMouth: 'Close mouth - teeth together',
+    showTeeth: 'Show teeth slightly',
     tiltHeadDown: 'Tilt head down',
     tiltHeadUp: 'Tilt head up',
     turnHeadTo70: 'Turn head to 70°',
@@ -133,10 +142,16 @@ if (currentLanguage.includes('en')) currentLanguage = 'en';
     lowerTeethInstruction: '請將嘴巴張大並稍微向下傾斜頭部，清楚展示您的下排牙齒。',
     upperTeethInstruction: '請將嘴巴張大並稍微向上傾斜頭部，清楚展示您的上排牙齒。',
     sideOpenInstruction: '請將頭部明顯轉向側面並張大嘴巴，展示您的側面牙齒。',
+    getCloser: '請靠近攝像頭',
+    tooClose: '請稍微後退',
     centerMouth: '請對準中心',
+    teethDetected: '已偵測到牙齒',
+    tryGetMore: '嘗試捕捉更多牙齒',
     lookStraight: '請直視前方',
     openWider: '請張大嘴巴',
     openMuchWider: '請將嘴巴張到最大',
+    closeMouth: '請閉合嘴巴 - 牙齒併攏',
+    showTeeth: '請微微露出牙齒',
     tiltHeadDown: '請下傾頭部',
     tiltHeadUp: '請上傾頭部',
     turnHeadTo70: '請將頭部側轉70度',
@@ -234,6 +249,7 @@ const retryBtn = document.getElementById('retryBtn') as HTMLButtonElement;
 const cameraStatus = document.getElementById('cameraStatus') as HTMLSpanElement;
 const faceStatus = document.getElementById('faceStatus') as HTMLSpanElement;
 const analysisStatus = document.getElementById('analysisStatus') as HTMLSpanElement;
+const teethStatus = document.getElementById('teethStatus') as HTMLSpanElement;
 
 // Treatment plan elements
 const treatmentPlanSection = document.getElementById('treatmentPlanSection') as HTMLDivElement;
@@ -287,6 +303,7 @@ let isProcessing = false;
 let faceDetected = false;
 let mouthOpen = false;
 let currentGenerationId = 0; // Track generation attempts
+let hideFeedbackForCapture = false; // Flag to temporarily hide feedback text for clean capture
 let currentLandmarks: any[] | null = null; // Store latest face landmarks
 let currentSession: ScanSession | null = null;
 let pendingDentalAnalysis: DentalAnalysis | null = null;
@@ -303,17 +320,119 @@ interface ToothDetection {
 
 let currentTeethDetections: ToothDetection[] = [];
 let lastToothDetectionTime = 0;
-const TOOTH_DETECTION_INTERVAL = 1000; // Run inference every 1s (FAST 320x320 model)
+const TOOTH_DETECTION_INTERVAL = 100; // Run 320x320 fast - smooth updates
 let isDetecting = false; // Prevent overlapping API calls
 
-// Cache for real-time tooth tracking
-interface TeethTrackingCache {
-  detections: ToothDetection[];
-  referenceMouthCenter: { x: number; y: number };
-  referenceMouthWidth: number;
-  referenceMouthHeight: number;
+// MediaPipe-based interpolation cache
+interface TeethInterpolationCache {
+  detections: ToothDetection[];           // ONNX detections at reference time
+  refMouthCenter: { x: number; y: number }; // Mouth center when ONNX ran
+  refMouthWidth: number;                    // Mouth width when ONNX ran
 }
-let teethTrackingCache: TeethTrackingCache | null = null;
+let teethInterpolationCache: TeethInterpolationCache | null = null;
+
+// Landmark smoothing to reduce MediaPipe jitter
+interface SmoothedLandmark {
+  x: number;
+  y: number;
+  z?: number;
+}
+let smoothedLandmarks: SmoothedLandmark[] | null = null;
+let smoothedStageLandmarks: SmoothedLandmark[] | null = null; // Separate smoothing for stage view
+const SMOOTHING_FACTOR = 0.65; // Higher smoothing since we disabled refineLandmarks
+
+/**
+ * Smooth landmarks using Exponential Moving Average to reduce jitter
+ * This makes the overlay much more stable even when MediaPipe is jittery
+ */
+function smoothLandmarks(rawLandmarks: any[], isStage: boolean = false): SmoothedLandmark[] {
+  const buffer = isStage ? smoothedStageLandmarks : smoothedLandmarks;
+  
+  if (!buffer || buffer.length !== rawLandmarks.length) {
+    // First frame - initialize with raw landmarks
+    const newBuffer = rawLandmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z }));
+    if (isStage) {
+      smoothedStageLandmarks = newBuffer;
+    } else {
+      smoothedLandmarks = newBuffer;
+    }
+    return newBuffer;
+  }
+  
+  // Apply exponential moving average smoothing
+  // smoothed = smoothed * alpha + raw * (1 - alpha)
+  const alpha = SMOOTHING_FACTOR;
+  const beta = 1 - alpha;
+  
+  for (let i = 0; i < rawLandmarks.length; i++) {
+    buffer[i].x = buffer[i].x * alpha + rawLandmarks[i].x * beta;
+    buffer[i].y = buffer[i].y * alpha + rawLandmarks[i].y * beta;
+    if (rawLandmarks[i].z !== undefined) {
+      buffer[i].z = (buffer[i].z || 0) * alpha + rawLandmarks[i].z * beta;
+    }
+  }
+  
+  return buffer;
+}
+
+/**
+ * Interpolate teeth positions using MediaPipe landmarks
+ * This runs at 30fps using the fast MediaPipe data to move
+ * accurate ONNX detections smoothly with the face
+ */
+function interpolateTeethWithMediaPipe(
+  currentLandmarks: any[],
+  canvasWidth: number,
+  canvasHeight: number
+): ToothDetection[] {
+  if (!teethInterpolationCache || teethInterpolationCache.detections.length === 0) {
+    return [];
+  }
+  
+  // Get current mouth position from MediaPipe (runs at 30fps)
+  const leftMouth = currentLandmarks[61];
+  const rightMouth = currentLandmarks[291];
+  const upperLip = currentLandmarks[13];
+  const lowerLip = currentLandmarks[14];
+  
+  if (!leftMouth || !rightMouth || !upperLip || !lowerLip) {
+    return teethInterpolationCache.detections;
+  }
+  
+  const currentMouthCenterX = ((leftMouth.x + rightMouth.x) / 2) * canvasWidth;
+  const currentMouthCenterY = ((upperLip.y + lowerLip.y) / 2) * canvasHeight;
+  const currentMouthWidth = Math.abs((rightMouth.x - leftMouth.x) * canvasWidth);
+  
+  // Calculate how mouth has moved since ONNX detection
+  const deltaX = currentMouthCenterX - teethInterpolationCache.refMouthCenter.x;
+  const deltaY = currentMouthCenterY - teethInterpolationCache.refMouthCenter.y;
+  
+  // Calculate uniform scale (prevents stretching - only scales proportionally)
+  const scale = currentMouthWidth / teethInterpolationCache.refMouthWidth;
+  
+  // Transform each tooth to follow mouth movement
+  return teethInterpolationCache.detections.map(tooth => {
+    // Get tooth center relative to reference mouth center
+    const toothCenterX = tooth.x + tooth.width / 2;
+    const toothCenterY = tooth.y + tooth.height / 2;
+    const relX = toothCenterX - teethInterpolationCache!.refMouthCenter.x;
+    const relY = toothCenterY - teethInterpolationCache!.refMouthCenter.y;
+    
+    // Apply uniform scale around mouth center, then translate
+    const newCenterX = teethInterpolationCache!.refMouthCenter.x + relX * scale + deltaX;
+    const newCenterY = teethInterpolationCache!.refMouthCenter.y + relY * scale + deltaY;
+    const newWidth = tooth.width * scale;
+    const newHeight = tooth.height * scale;
+    
+    return {
+      ...tooth,
+      x: newCenterX - newWidth / 2,
+      y: newCenterY - newHeight / 2,
+      width: newWidth,
+      height: newHeight
+    };
+  });
+}
 
 // Tab 3 (4-stage capture) state
 type CaptureStageId = 'front_smile' | 'lower_front' | 'upper_front' | 'side_bite';
@@ -354,10 +473,7 @@ let stageCaptures: Array<string | null> = [null, null, null, null];
 let activeStageIndex = 0;
 let stageReady = false;
 let stageLandmarks: any[] | null = null;
-let stageTeethDetections: ToothDetection[] = [];
-let stageIsDetecting = false;
-let stageLastDetectTime = 0;
-let stageTeethTrackingCache: TeethTrackingCache | null = null;
+// Teeth detection disabled for Photo Scan - using MediaPipe guide only
 
 // Initialize MediaPipe Face Mesh
 function initializeFaceMesh() {
@@ -372,9 +488,10 @@ function initializeFaceMesh() {
 
   faceMesh.setOptions({
     maxNumFaces: 1,
-    refineLandmarks: true,
+    refineLandmarks: false, // DISABLED - this is expensive! Saves ~40% processing time
     minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5
+    minTrackingConfidence: 0.5,
+    selfieMode: true // Optimize for front-facing camera
   });
 
   // We set results handler depending on the current active mode
@@ -408,47 +525,47 @@ function isMouthOpen(landmarks: any[]): boolean {
   return mouthOpenDistance > threshold;
 }
 
-// Transform cached teeth detections to current mouth position for real-time tracking
-function transformTeethToCurrentMouth(
-  cache: TeethTrackingCache,
+// Transform cached teeth using interpolation cache (for stage view)
+function transformStageTeeth(
+  cache: TeethInterpolationCache,
   currentLandmarks: any[],
   width: number,
   height: number
 ): ToothDetection[] {
-  // Get current mouth metrics
-  const upperLip = currentLandmarks[13];
-  const lowerLip = currentLandmarks[14];
   const leftMouth = currentLandmarks[61];
   const rightMouth = currentLandmarks[291];
+  const upperLip = currentLandmarks[13];
+  const lowerLip = currentLandmarks[14];
   
-  if (!upperLip || !lowerLip || !leftMouth || !rightMouth) {
-    return cache.detections; // Return original if landmarks missing
+  if (!leftMouth || !rightMouth || !upperLip || !lowerLip) {
+    return cache.detections;
   }
   
   const currentMouthCenterX = ((leftMouth.x + rightMouth.x) / 2) * width;
   const currentMouthCenterY = ((upperLip.y + lowerLip.y) / 2) * height;
   const currentMouthWidth = Math.abs((rightMouth.x - leftMouth.x) * width);
-  const currentMouthHeight = Math.abs((lowerLip.y - upperLip.y) * height);
   
-  // Calculate transformation
-  const translateX = currentMouthCenterX - cache.referenceMouthCenter.x;
-  const translateY = currentMouthCenterY - cache.referenceMouthCenter.y;
-  const scaleX = currentMouthWidth / cache.referenceMouthWidth;
-  const scaleY = currentMouthHeight / cache.referenceMouthHeight;
+  const deltaX = currentMouthCenterX - cache.refMouthCenter.x;
+  const deltaY = currentMouthCenterY - cache.refMouthCenter.y;
+  const scale = currentMouthWidth / cache.refMouthWidth;
   
-  // Transform each tooth detection
-  return cache.detections.map(tooth => {
-    // Calculate relative position to reference mouth center
-    const relX = tooth.x - cache.referenceMouthCenter.x;
-    const relY = tooth.y - cache.referenceMouthCenter.y;
+  return cache.detections.map((tooth: ToothDetection) => {
+    const toothCenterX = tooth.x + tooth.width / 2;
+    const toothCenterY = tooth.y + tooth.height / 2;
+    const relX = toothCenterX - cache.refMouthCenter.x;
+    const relY = toothCenterY - cache.refMouthCenter.y;
     
-    // Apply scale and translation
+    const newCenterX = cache.refMouthCenter.x + relX * scale + deltaX;
+    const newCenterY = cache.refMouthCenter.y + relY * scale + deltaY;
+    const newWidth = tooth.width * scale;
+    const newHeight = tooth.height * scale;
+    
     return {
       ...tooth,
-      x: cache.referenceMouthCenter.x + relX * scaleX + translateX,
-      y: cache.referenceMouthCenter.y + relY * scaleY + translateY,
-      width: tooth.width * scaleX,
-      height: tooth.height * scaleY
+      x: newCenterX - newWidth / 2,
+      y: newCenterY - newHeight / 2,
+      width: newWidth,
+      height: newHeight
     };
   });
 }
@@ -517,10 +634,104 @@ function filterDetectionsInMouthRegion(
   });
 }
 
-// Draw smooth tooth overlays (professional Smileset-style) - SHOW confidence for debugging
+// Smart upper/lower teeth separator - prevents 3-layer artifacts
+function splitUpperLowerTeeth(
+  detections: ToothDetection[], 
+  landmarks: any[], 
+  width: number, 
+  height: number
+): ToothDetection[] {
+  if (!landmarks || landmarks.length === 0) return detections;
+  
+  // Get upper and lower lip center points
+  const upperLip = landmarks[13]; // Upper lip center
+  const lowerLip = landmarks[14]; // Lower lip center
+  
+  if (!upperLip || !lowerLip) return detections;
+  
+  // Calculate midline between lips (pixel coordinates)
+  const midlineY = ((upperLip.y + lowerLip.y) / 2) * height;
+  const lipGap = Math.abs(lowerLip.y - upperLip.y) * height;
+  
+  // Define "dead zone" - very small middle area (only when teeth are CLOSED)
+  // Only apply dead zone filtering when gap is small (teeth closed)
+  const teethAreClosed = lipGap < 40;
+  const deadZoneMargin = teethAreClosed ? lipGap * 0.15 : 0; // 30% dead zone only when closed
+  const deadZoneTop = midlineY - deadZoneMargin;
+  const deadZoneBottom = midlineY + deadZoneMargin;
+  
+  // STEP 1: Remove small noise and dead zone artifacts (only when teeth closed)
+  const cleanDetections = detections.filter(tooth => {
+    const toothCenter = tooth.y + tooth.height / 2;
+    const inDeadZone = deadZoneMargin > 0 && toothCenter > deadZoneTop && toothCenter < deadZoneBottom;
+    const tooSmall = tooth.width < 8 || tooth.height < 8;
+    return !inDeadZone && !tooSmall;
+  });
+  
+  // STEP 2: Check if we already have clear upper AND lower teeth (at least 2 of each)
+  const upperTeethCount = cleanDetections.filter(t => (t.y + t.height / 2) < midlineY).length;
+  const lowerTeethCount = cleanDetections.filter(t => (t.y + t.height / 2) > midlineY).length;
+  const spanningCount = cleanDetections.filter(t => t.y < midlineY && (t.y + t.height) > midlineY).length;
+  
+  // STEP 3: Only split if we have spanning boxes AND we're missing one layer
+  // This prevents creating 3 layers when teeth are closed
+  const missingLayer = upperTeethCount < 2 || lowerTeethCount < 2;
+  const shouldSplit = missingLayer && spanningCount > 0 && lipGap > 15;
+  
+  if (!shouldSplit) {
+    return cleanDetections; // Already have both layers cleanly, don't split
+  }
+  
+  // STEP 4: Split large spanning detections
+  const result: ToothDetection[] = [];
+  
+  cleanDetections.forEach(tooth => {
+    const toothTop = tooth.y;
+    const toothBottom = tooth.y + tooth.height;
+    
+    // Check if tooth spans across the midline significantly
+    const spansUpperLower = toothTop < midlineY && toothBottom > midlineY;
+    const spanAmount = Math.min(midlineY - toothTop, toothBottom - midlineY);
+    
+    // Only split if it spans both regions (>25% on each side)
+    if (spansUpperLower && spanAmount > tooth.height * 0.25) {
+      // Split into upper tooth and lower tooth
+      const upperTooth: ToothDetection = {
+        x: tooth.x,
+        y: tooth.y,
+        width: tooth.width,
+        height: midlineY - tooth.y,
+        confidence: tooth.confidence * 0.85, // Lower confidence for splits
+        class: 'tooth',
+        toothNumber: tooth.toothNumber
+      };
+      
+      const lowerTooth: ToothDetection = {
+        x: tooth.x,
+        y: midlineY,
+        width: tooth.width,
+        height: toothBottom - midlineY,
+        confidence: tooth.confidence * 0.85,
+        class: 'tooth',
+        toothNumber: tooth.toothNumber
+      };
+      
+      // Only keep splits that are reasonable size
+      if (upperTooth.height > 5) result.push(upperTooth);
+      if (lowerTooth.height > 5) result.push(lowerTooth);
+    } else {
+      // Keep original tooth if it doesn't span both regions
+      result.push(tooth);
+    }
+  });
+  
+  return result;
+}
+
+// Draw smooth tooth overlays (professional Smileset-style)
 function drawTeethDetections(ctx: CanvasRenderingContext2D, detections: ToothDetection[]) {
-  if (SHOW_TOOTH_OVERLAY) {
-    drawSmoothToothOverlay(ctx, detections, true); // true = show confidence percentages for debugging
+  if (ENABLE_TEETH_OVERLAY) {
+    drawSmoothToothOverlay(ctx, detections, false); // false = hide confidence percentages
   }
 }
 
@@ -630,10 +841,7 @@ function drawCustomFaceMesh(ctx: CanvasRenderingContext2D, landmarks: any[], wid
   // Draw feedback text centered on head
   if (feedback) {
     ctx.save();
-    // Mirror for CSS scaleX(-1)
-    ctx.translate(width / 2, 0);
-    ctx.scale(-1, 1);
-    ctx.translate(-width / 2, 0);
+    // No mirroring needed
     
     ctx.font = 'bold 24px -apple-system, system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -791,10 +999,7 @@ function drawDentalOverlay(
   if (feedback) {
     ctx.save();
     
-    // IMPORTANT: Mirror the text drawing to counteract CSS scaleX(-1) flipping
-    ctx.translate(width / 2, 0);
-    ctx.scale(-1, 1);
-    ctx.translate(-width / 2, 0);
+    // No mirroring needed
     
     ctx.font = 'bold 24px -apple-system, system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -825,6 +1030,8 @@ function onFaceMeshResults(results: any) {
   
   canvasElement.width = webcamElement.videoWidth;
   canvasElement.height = webcamElement.videoHeight;
+  
+  // No mirroring applied
 
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -835,13 +1042,28 @@ function onFaceMeshResults(results: any) {
     faceStatus.textContent = t('faceDetected');
     faceStatus.style.color = '#00ce7c';
     
-    const landmarks = results.multiFaceLandmarks[0];
+    // Apply smoothing to reduce MediaPipe jitter
+    const rawLandmarks = results.multiFaceLandmarks[0];
+    const landmarks = smoothLandmarks(rawLandmarks);
     currentLandmarks = landmarks;
     mouthOpen = isMouthOpen(landmarks);
     
+    // Check if user is close enough for teeth detection
+    const leftMouth = landmarks[61];
+    const rightMouth = landmarks[291];
+    const mouthWidth = Math.abs((rightMouth.x - leftMouth.x) * canvasElement.width);
+    const isCloseEnough = mouthWidth > 280; // Minimum mouth width for good detection
+    const isReady = isCloseEnough && mouthOpen; // Both conditions must be true for green overlay
+    
     let feedback = '';
-    if (!isProcessing) {
-      if (mouthOpen) {
+    if (!isProcessing && !hideFeedbackForCapture) {
+      if (!isCloseEnough) {
+        analysisStatus.parentElement?.classList.remove('ready');
+        analysisStatus.parentElement?.classList.add('not-ready');
+        analysisStatus.textContent = t('getCloser');
+        captureBtn.disabled = true;
+        feedback = t('getCloser');
+      } else if (mouthOpen) {
         analysisStatus.parentElement?.classList.remove('not-ready');
         analysisStatus.parentElement?.classList.add('ready');
         analysisStatus.textContent = t('readyCapture');
@@ -857,7 +1079,7 @@ function onFaceMeshResults(results: any) {
     }
     
     // Run ONNX teeth detection BEFORE drawing overlays (for clean inference)
-    if (ENABLE_TOOTH_DETECTION && isONNXReady() && !isDetecting) {
+    if (ENABLE_TEETH_OVERLAY && isONNXReady() && !isDetecting) {
       const now = Date.now();
       if (now - lastToothDetectionTime > TOOTH_DETECTION_INTERVAL) {
         lastToothDetectionTime = now;
@@ -866,68 +1088,107 @@ function onFaceMeshResults(results: any) {
         // Get clean ImageData BEFORE overlays are drawn
         const imageData = canvasCtx.getImageData(0, 0, canvasElement.width, canvasElement.height);
         
-        // Run ONNX detection (640x640 - QUALITY model for teeth details)
-        detectTeethONNX(imageData, 640, 640).then(detections => {
-          // Filter detections to mouth region only
-          const filteredDetections = filterDetectionsInMouthRegion(
-            detections, 
-            landmarks, 
-            canvasElement.width, 
-            canvasElement.height
-          );
-          
-          // Cache detections with current mouth position for real-time tracking
-          const upperLip = landmarks[13];
-          const lowerLip = landmarks[14];
-          const leftMouth = landmarks[61];
-          const rightMouth = landmarks[291];
-          
-          if (upperLip && lowerLip && leftMouth && rightMouth) {
-            teethTrackingCache = {
+        // Capture current mouth position for interpolation reference
+        const leftMouth = landmarks[61];
+        const rightMouth = landmarks[291];
+        const upperLip = landmarks[13];
+        const lowerLip = landmarks[14];
+        
+        const refMouthCenter = {
+          x: ((leftMouth.x + rightMouth.x) / 2) * canvasElement.width,
+          y: ((upperLip.y + lowerLip.y) / 2) * canvasElement.height
+        };
+        const refMouthWidth = Math.abs((rightMouth.x - leftMouth.x) * canvasElement.width);
+        
+        // Run ONNX detection using requestIdleCallback to avoid blocking display
+        const runDetection = () => {
+          detectTeethONNX(imageData, 320, 320).then(detections => {
+            // Filter detections to mouth region only
+            let filteredDetections = filterDetectionsInMouthRegion(
+              detections, 
+              landmarks, 
+              canvasElement.width, 
+              canvasElement.height
+            );
+            
+            // Split detections that span both upper and lower teeth
+            filteredDetections = splitUpperLowerTeeth(
+              filteredDetections,
+              landmarks,
+              canvasElement.width,
+              canvasElement.height
+            );
+            
+            // Store detections with mouth reference for MediaPipe interpolation
+            teethInterpolationCache = {
               detections: filteredDetections,
-              referenceMouthCenter: {
-                x: ((leftMouth.x + rightMouth.x) / 2) * canvasElement.width,
-                y: ((upperLip.y + lowerLip.y) / 2) * canvasElement.height
-              },
-              referenceMouthWidth: Math.abs((rightMouth.x - leftMouth.x) * canvasElement.width),
-              referenceMouthHeight: Math.abs((lowerLip.y - upperLip.y) * canvasElement.height)
+              refMouthCenter,
+              refMouthWidth
             };
-          }
-          
-          currentTeethDetections = filteredDetections;
-          isDetecting = false;
-        }).catch(err => {
-          console.error('[DEBUG] Teeth detection failed:', err);
-          isDetecting = false;
-        });
+            
+            currentTeethDetections = filteredDetections;
+            isDetecting = false;
+          }).catch(err => {
+            console.error('[DEBUG] Teeth detection failed:', err);
+            isDetecting = false;
+          });
+        };
+        
+        // Use requestIdleCallback if available, otherwise setTimeout
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(runDetection, { timeout: 100 });
+        } else {
+          setTimeout(runDetection, 0);
+        }
       }
     }
     
     // Draw custom Beame face mesh (GREEN overlay - borders, mouth)
-    drawCustomFaceMesh(canvasCtx, landmarks, canvasElement.width, canvasElement.height, mouthOpen, feedback);
+    // Show green only when BOTH close enough AND mouth open
+    drawCustomFaceMesh(canvasCtx, landmarks, canvasElement.width, canvasElement.height, isReady, feedback);
     
-    // Draw teeth detections (WHITE overlay) with real-time tracking
-    // This transforms cached detections to follow face movement smoothly at 30fps
-    if (SHOW_TOOTH_OVERLAY && teethTrackingCache && teethTrackingCache.detections.length > 0) {
-      // Transform cached detections to current mouth position for smooth tracking
-      const transformedTeeth = transformTeethToCurrentMouth(
-        teethTrackingCache,
-        landmarks,
-        canvasElement.width,
-        canvasElement.height
-      );
-      drawTeethDetections(canvasCtx, transformedTeeth);
+    // Draw teeth detections (WHITE overlay) - ONNX accuracy + MediaPipe interpolation for 30fps
+    // Only show if user is close enough to camera
+    if (ENABLE_TEETH_OVERLAY) {
+      const leftMouth = landmarks[61];
+      const rightMouth = landmarks[291];
+      const mouthWidth = Math.abs((rightMouth.x - leftMouth.x) * canvasElement.width);
+      const isCloseEnough = mouthWidth > 280; // Same threshold as feedback
+      
+      if (isCloseEnough && teethInterpolationCache) {
+        const interpolatedTeeth = interpolateTeethWithMediaPipe(landmarks, canvasElement.width, canvasElement.height);
+        if (interpolatedTeeth.length > 0) {
+          drawTeethDetections(canvasCtx, interpolatedTeeth);
+          if (teethStatus) {
+            teethStatus.textContent = interpolatedTeeth.length.toString();
+            teethStatus.parentElement?.classList.remove('not-ready');
+            teethStatus.parentElement?.classList.add('ready');
+          }
+        } else if (teethStatus) {
+          teethStatus.textContent = '0';
+          teethStatus.parentElement?.classList.remove('ready');
+          teethStatus.parentElement?.classList.add('not-ready');
+        }
+      } else if (teethStatus) {
+        teethStatus.textContent = '-';
+        teethStatus.parentElement?.classList.remove('ready', 'not-ready');
+      }
     }
   } else {
     faceDetected = false;
     mouthOpen = false;
     currentLandmarks = null;
     currentTeethDetections = [];
-    teethTrackingCache = null; // Clear tracking cache when face is lost
+    teethInterpolationCache = null; // Clear interpolation when face lost
+    smoothedLandmarks = null; // Reset smoothing when face lost
     faceStatus.textContent = t('noFace');
     faceStatus.style.color = '#ef4444';
     analysisStatus.parentElement?.classList.remove('ready', 'not-ready');
     analysisStatus.textContent = t('openMouthWider');
+    if (teethStatus) {
+      teethStatus.textContent = '-';
+      teethStatus.parentElement?.classList.remove('ready', 'not-ready');
+    }
     captureBtn.disabled = true;
   }
 
@@ -975,6 +1236,8 @@ async function startCamera(): Promise<boolean> {
     webcamElement.muted = true;
     webcamElement.setAttribute('playsinline', 'true');
     webcamElement.srcObject = stream;
+    
+    // Mirroring disabled
     
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Camera timeout')), 15000); // Increased to 15 seconds
@@ -1108,21 +1371,37 @@ async function capturePhoto() {
     return;
   }
 
-  isProcessing = true;
   currentGenerationId++;
   const thisGenerationId = currentGenerationId;
   captureBtn.disabled = true;
 
-  const originalImageWithMesh = canvasElement.toDataURL('image/png');
-  originalImage.src = originalImageWithMesh;
+  // Step 1: Hide feedback text for the next frame
+  hideFeedbackForCapture = true;
   
-  const captureCanvas = document.createElement('canvas');
-  const captureCtx = captureCanvas.getContext('2d')!;
-  captureCanvas.width = webcamElement.videoWidth;
-  captureCanvas.height = webcamElement.videoHeight;
-  captureCtx.drawImage(webcamElement, 0, 0, captureCanvas.width, captureCanvas.height);
+  // Step 2: Wait for the next animation frame to redraw the canvas without feedback
+  await new Promise(resolve => requestAnimationFrame(resolve));
   
-  const cleanImageDataUrl = captureCanvas.toDataURL('image/png');
+  // Step 3: Capture the canvas directly (with overlays but no feedback text)
+  const capturedImageWithOverlays = canvasElement.toDataURL('image/png');
+  originalImage.src = capturedImageWithOverlays;
+  
+  // Step 4: Re-enable feedback and set processing state
+  hideFeedbackForCapture = false;
+  isProcessing = true;
+  
+  // Step 5: Also capture clean webcam image for AI processing
+  const cleanCanvas = document.createElement('canvas');
+  const cleanCtx = cleanCanvas.getContext('2d')!;
+  cleanCanvas.width = webcamElement.videoWidth;
+  cleanCanvas.height = webcamElement.videoHeight;
+  cleanCtx.drawImage(webcamElement, 0, 0, cleanCanvas.width, cleanCanvas.height);
+  const cleanImageDataUrl = cleanCanvas.toDataURL('image/png');
+
+  // NOW stop camera loop to free up resources during processing
+  if (camera) {
+    (camera as any).stop();
+    camera = null;
+  }
 
   webcamSection.style.display = 'none';
   resultsSection.style.display = 'block';
@@ -1140,7 +1419,7 @@ async function capturePhoto() {
   
   if (currentLandmarks) {
     analysisPromises.push(
-      performDentalAnalysis(cleanImageDataUrl, originalImageWithMesh).catch(error => {
+      performDentalAnalysis(cleanImageDataUrl, cleanImageDataUrl).catch(error => {
         console.error('[DEBUG] Dental analysis failed:', error);
       })
     );
@@ -1148,8 +1427,11 @@ async function capturePhoto() {
   
   await Promise.all(analysisPromises);
   
+  console.log('[DEBUG] All analysis promises completed');
+  
   // FINAL CHECK: Ensure AI Image is actually visible before allowing tabs
   if (straightenedImage.src) {
+    console.log('[DEBUG] Hiding processing indicator, showing result');
     processingIndicator.style.display = 'none';
     straightenedImage.style.display = 'block';
     downloadBtn.style.display = 'inline-block';
@@ -1174,18 +1456,37 @@ async function capturePhoto() {
 // Generate straightened image with Beame logo using Gemini AI
 async function generateStraightenedImage(originalDataUrl: string, generationId: number): Promise<void> {
   if (USE_FALLBACK_MODE) {
+    console.log('[DEBUG] Using fallback mode for image generation');
     await new Promise(resolve => setTimeout(resolve, 1000));
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0);
-      ctx.font = 'bold 40px Arial'; ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
-      ctx.textAlign = 'center'; ctx.fillText('FALLBACK MODE', canvas.width / 2, 50);
-      straightenedImage.src = canvas.toDataURL('image/png');
-    };
-    img.src = originalDataUrl;
+    
+    // Wait for image to load before drawing
+    await new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width; 
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0);
+          ctx.font = 'bold 40px Arial'; 
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+          ctx.textAlign = 'center'; 
+          ctx.fillText('FALLBACK MODE', canvas.width / 2, 50);
+          straightenedImage.src = canvas.toDataURL('image/png');
+          console.log('[DEBUG] Fallback image generated successfully');
+          resolve();
+        } catch (error) {
+          console.error('[DEBUG] Error in fallback image generation:', error);
+          reject(error);
+        }
+      };
+      img.onerror = (error) => {
+        console.error('[DEBUG] Image failed to load:', error);
+        reject(error);
+      };
+      img.src = originalDataUrl;
+    });
     return;
   }
   
@@ -1220,9 +1521,10 @@ async function generateStraightenedImage(originalDataUrl: string, generationId: 
         
         for (const part of parts) {
           if (part.inlineData) {
-            const brandedImage = await addBeameBranding(`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`);
+            // Branding removed as requested
+            const resultImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
             if (generationId !== currentGenerationId) return;
-            straightenedImage.src = brandedImage;
+            straightenedImage.src = resultImage;
             return;
           }
         }
@@ -1270,6 +1572,12 @@ async function _generateStraightenedImageOld(originalDataUrl: string): Promise<v
 
 // AI Classify
 async function classifyDentalCase(imageDataUrl: string): Promise<'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT'> {
+  // If fallback mode is enabled, skip Gemini API call
+  if (USE_FALLBACK_MODE) {
+    console.log('[DEBUG] Skipping Gemini classification (fallback mode)');
+    return 'MODERATE';
+  }
+  
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey || apiKey === 'your_gemini_api_key_here') return 'MODERATE';
   try {
@@ -1389,6 +1697,8 @@ async function performDentalAnalysis(cleanImageUrl: string, originalImageUrl: st
     analysisStep.textContent = t('preparingPlan');
     pendingDentalAnalysis = dentalAnalysis;
     
+    console.log('[DEBUG] Dental analysis complete, plan ready');
+    
     // NOTE: Tab activation moved to capturePhoto() after straightenedImage is confirmed visible
     // This ensures users can't click tabs before the AI result is shown
     
@@ -1506,6 +1816,9 @@ async function startStageCamera(): Promise<boolean> {
     stageWebcam.muted = true;
     stageWebcam.setAttribute('playsinline', 'true');
     stageWebcam.srcObject = stream;
+    
+    // No mirroring applied
+    
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Stage camera timeout')), 10000);
       stageWebcam.onloadedmetadata = () => { clearTimeout(timeout); stageWebcam.play().then(resolve).catch(reject); };
@@ -1550,6 +1863,7 @@ function onStageFaceMeshResults(results: any) {
   if (stageOverlay.width !== stageWebcam.videoWidth || stageOverlay.height !== stageWebcam.videoHeight) {
     stageOverlay.width = stageWebcam.videoWidth;
     stageOverlay.height = stageWebcam.videoHeight;
+    // No mirroring applied
   }
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, stageOverlay.width, stageOverlay.height);
@@ -1558,7 +1872,9 @@ function onStageFaceMeshResults(results: any) {
   const stages = getCaptureStages();
   const currentStage = stages[activeStageIndex];
   if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-    const landmarks = results.multiFaceLandmarks[0];
+    // Apply smoothing to reduce MediaPipe jitter
+    const rawLandmarks = results.multiFaceLandmarks[0];
+    const landmarks = smoothLandmarks(rawLandmarks, true); // true = stage view
     stageLandmarks = landmarks;
     
     // Get alignment status and feedback
@@ -1578,71 +1894,10 @@ function onStageFaceMeshResults(results: any) {
       stageCaptureBtn.disabled = true;
     }
 
-    // Run ONNX teeth detection BEFORE drawing overlays (for clean inference)
-    if (ENABLE_TOOTH_DETECTION && isONNXReady() && !stageIsDetecting) {
-      const now = Date.now();
-      if (now - stageLastDetectTime > TOOTH_DETECTION_INTERVAL) {
-        stageLastDetectTime = now;
-        stageIsDetecting = true;
-        
-        // Get clean ImageData BEFORE overlays are drawn
-        const imageData = canvasCtx.getImageData(0, 0, stageOverlay.width, stageOverlay.height);
-        
-        // Run ONNX detection (640x640 - QUALITY model for teeth details)
-        detectTeethONNX(imageData, 640, 640).then(detections => {
-          // Filter detections to mouth region only
-          const filteredDetections = filterDetectionsInMouthRegion(
-            detections, 
-            landmarks, 
-            stageOverlay.width, 
-            stageOverlay.height
-          );
-          
-          // Cache detections with current mouth position for real-time tracking
-          const upperLip = landmarks[13];
-          const lowerLip = landmarks[14];
-          const leftMouth = landmarks[61];
-          const rightMouth = landmarks[291];
-          
-          if (upperLip && lowerLip && leftMouth && rightMouth) {
-            stageTeethTrackingCache = {
-              detections: filteredDetections,
-              referenceMouthCenter: {
-                x: ((leftMouth.x + rightMouth.x) / 2) * stageOverlay.width,
-                y: ((upperLip.y + lowerLip.y) / 2) * stageOverlay.height
-              },
-              referenceMouthWidth: Math.abs((rightMouth.x - leftMouth.x) * stageOverlay.width),
-              referenceMouthHeight: Math.abs((lowerLip.y - upperLip.y) * stageOverlay.height)
-            };
-          }
-          
-          stageTeethDetections = filteredDetections;
-          stageIsDetecting = false;
-        }).catch(err => {
-          console.error('[DEBUG] Stage teeth detection failed:', err);
-          stageIsDetecting = false;
-        });
-      }
-    }
-    
-    // Draw dental overlay (GREEN overlay - borders, mouth)
+    // Draw dental overlay (GREEN overlay - borders, mouth, orientation validation)
     drawDentalOverlay(canvasCtx, landmarks, stageOverlay.width, stageOverlay.height, stageReady, currentStage.id, validation.feedback);
-    
-    // Draw teeth detections (WHITE overlay) with real-time tracking
-    if (SHOW_TOOTH_OVERLAY && stageTeethTrackingCache && stageTeethTrackingCache.detections.length > 0) {
-      // Transform cached detections to current mouth position
-      const transformedTeeth = transformTeethToCurrentMouth(
-        stageTeethTrackingCache,
-        landmarks,
-        stageOverlay.width,
-        stageOverlay.height
-      );
-      drawTeethDetections(canvasCtx, transformedTeeth);
-    }
   } else {
     stageLandmarks = null; stageReady = false;
-    stageTeethDetections = [];
-    stageTeethTrackingCache = null; // Clear tracking cache when face is lost
     stageReadyBadge.classList.remove('ready');
     stageReadyBadge.classList.add('not-ready');
     stageReadyText.textContent = t('noFace');
@@ -1675,15 +1930,18 @@ function validateStageAlignmentVerbose(stageId: CaptureStageId, landmarks: any[]
     case 'front_smile':
       // Must be looking straight
       if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: t('lookStraight') };
-      // Mouth must be open enough to show front teeth
-      if (mouthOpenDist < 0.045) return { isReady: false, feedback: t('openWider') };
+      // FRONT VIEW: Use same threshold as AI Preview (mouth slightly open showing teeth)
+      // Start being valid at 0.05 (same as AI Preview's isMouthOpen threshold)
+      if (mouthOpenDist < 0.05) return { isReady: false, feedback: t('openWider') };
+      // Only reject if mouth is EXTREMELY wide open (like dentist exam)
+      if (mouthOpenDist > 0.13) return { isReady: false, feedback: t('closeMouth') };
       break;
 
     case 'lower_front':
       // Must be looking straight
       if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: t('lookStraight') };
-      // REQUIRE JAW TO BE MUCH LOWER (No touching teeth)
-      if (mouthOpenDist < 0.1) return { isReady: false, feedback: t('openMuchWider') };
+      // LOWER VIEW: Mouth must be VERY WIDE OPEN (stricter requirement)
+      if (mouthOpenDist < 0.15) return { isReady: false, feedback: t('openMuchWider') };
       // Head must be tilted DOWN to focus on lower teeth
       if (getPitchProxy(landmarks) < 0.015) return { isReady: false, feedback: t('tiltHeadDown') };
       break;
@@ -1691,8 +1949,8 @@ function validateStageAlignmentVerbose(stageId: CaptureStageId, landmarks: any[]
     case 'upper_front':
       // Must be looking straight
       if (Math.abs(yaw) > 0.04) return { isReady: false, feedback: t('lookStraight') };
-      // REQUIRE JAW TO BE MUCH LOWER (No touching teeth)
-      if (mouthOpenDist < 0.1) return { isReady: false, feedback: t('openMuchWider') };
+      // UPPER VIEW: Mouth must be VERY WIDE OPEN (stricter requirement)
+      if (mouthOpenDist < 0.15) return { isReady: false, feedback: t('openMuchWider') };
       // Head must be tilted UP to focus on upper teeth
       if (getPitchProxy(landmarks) > -0.015) return { isReady: false, feedback: t('tiltHeadUp') };
       break;
@@ -1993,7 +2251,7 @@ async function retry() {
   if (camera) { (camera as any).stop(); camera = null; }
   if (stageCamera) (stageCamera as any).stop(); stageCamera = null;
   pendingDentalAnalysis = null; stageCaptures = [null, null, null, null]; activeStageIndex = 0;
-  teethTrackingCache = null; stageTeethTrackingCache = null; // Clear tracking caches
+  // Tracking caches removed - using raw ONNX detections
   
   // Reset form and camera card visibility
   const captureCard = document.querySelector('.capture4-card') as HTMLElement;
@@ -2032,7 +2290,7 @@ retryBtn.addEventListener('click', retry);
 
 async function initializeApp() {
   console.log('[DEBUG] Beame Teeth Straightener initialized');
-  if (ENABLE_TOOTH_DETECTION) {
+  if (ENABLE_TEETH_OVERLAY) {
     console.log('[DEBUG] Loading ONNX tooth detection model...');
     console.log('[DEBUG] Model path:', ONNX_MODEL_PATH);
     try { 

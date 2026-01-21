@@ -29,8 +29,8 @@ export function drawSmoothToothOverlay(
 
   detections.forEach((tooth) => {
     // Convert box to 4-point polygon with inset corners for tooth-like shape
-    const insetX = tooth.width * 0.08; // 8% inset for more rounded tooth shape
-    const insetY = tooth.height * 0.06; // 6% inset vertically
+    const insetX = tooth.width * 0.12; // 12% inset to prevent visual overlap
+    const insetY = tooth.height * 0.10; // 10% inset vertically for cleaner separation
     
     const corners: Point[] = [
       { x: tooth.x + insetX, y: tooth.y + insetY },
@@ -42,52 +42,19 @@ export function drawSmoothToothOverlay(
     // Draw smooth curved polygon
     ctx.save();
     
-    // White glow effect (clean and professional)
-    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
-    ctx.shadowBlur = 8;
-    
     // Draw tooth shape with smooth curves
     ctx.beginPath();
     drawSmoothPolygon(ctx, corners, 0.25);
     ctx.closePath();
     
-    // White gradient fill for natural tooth look
-    const centerX = tooth.x + tooth.width / 2;
-    const centerY = tooth.y + tooth.height / 2;
-    const gradient = ctx.createRadialGradient(
-      centerX, centerY, 0,
-      centerX, centerY, Math.max(tooth.width, tooth.height) / 2
-    );
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.15)');
-    ctx.fillStyle = gradient;
+    // Simple white fill with opacity for clean look
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
     ctx.fill();
     
-    // Bright white stroke for definition
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.lineWidth = 2.5;
+    // White stroke for definition
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 2;
     ctx.stroke();
-    
-    // Inner highlight for 3D effect
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    
-    // Show confidence for debugging (temporary)
-    if (showNumbers) {
-      const confY = tooth.y - 8;
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 10px -apple-system, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.lineWidth = 3;
-      const confText = (tooth.confidence * 100).toFixed(0) + '%';
-      ctx.strokeText(confText, centerX, confY);
-      ctx.fillText(confText, centerX, confY);
-    }
     
     ctx.restore();
   });
