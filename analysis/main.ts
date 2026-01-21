@@ -2141,9 +2141,9 @@ async function initializeStageCapture(): Promise<void> {
 
 async function loadDemoPics(): Promise<void> {
   const demoPicPaths = [
-    '/analysis/demopics/demopics%20professional/lowergem.png',
-    '/analysis/demopics/demopics%20professional/uppergem.png',
-    '/analysis/demopics/demopics%20professional/sidegem.png'
+    '/demopics/demopics%20professional/lowergem.png',
+    '/demopics/demopics%20professional/uppergem.png',
+    '/demopics/demopics%20professional/sidegem.png'
   ];
   
   try {
