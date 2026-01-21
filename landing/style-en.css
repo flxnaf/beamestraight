@@ -1772,14 +1772,8 @@ h1, h2, h3, h4, h5, h6, p, a, span, button, td, th {
 .slide {
   margin-bottom: 20px;
   border-radius: 20px;
-  overflow: hidden;
-}
-
-@media (min-width: 769px) {
-    .slide {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .pricing-mobile {
