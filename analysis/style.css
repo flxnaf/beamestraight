@@ -497,8 +497,7 @@ body.app-body {
   text-align: center;
   font-size: 11px;
   color: var(--text-light);
-  margin-top: 16px;
-  margin-bottom: 20px;
+  margin-top: 10px;
   font-style: italic;
 }
 
@@ -1255,9 +1254,9 @@ body.app-body {
 
 .capture4-thumbs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  max-width: 450px;
+  max-width: 600px;
   margin: 0 auto;
 }
 
@@ -1592,3 +1591,73 @@ body.app-body {
   color: var(--text-muted);
 }
 
+/* ============================================
+   KEYBOARD SHORTCUTS HELP & EXAMPLE PHOTOS
+   ============================================ */
+
+.keyboard-shortcuts-help {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: var(--radius-sm);
+  border: 1px solid #e0e0e0;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.shortcut-item kbd {
+  display: inline-block;
+  padding: 6px 12px;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: bold;
+  color: #333;
+  background: white;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-width: 36px;
+  text-align: center;
+}
+
+.example-badge {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  background: rgba(240, 140, 0, 0.9);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: bold;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .keyboard-shortcuts-help {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+  
+  .shortcut-item {
+    font-size: 13px;
+  }
+  
+  .shortcut-item kbd {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+}
