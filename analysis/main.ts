@@ -245,6 +245,7 @@ const processingIndicator = document.getElementById('processingIndicator') as HT
 const analysisStep = document.getElementById('analysisStep') as HTMLParagraphElement;
 const downloadBtn = document.getElementById('downloadBtn') as HTMLButtonElement;
 const retryBtn = document.getElementById('retryBtn') as HTMLButtonElement;
+const nextToPlanBtn = document.getElementById('nextToPlanBtn') as HTMLButtonElement;
 // Status elements
 const cameraStatus = document.getElementById('cameraStatus') as HTMLSpanElement;
 const faceStatus = document.getElementById('faceStatus') as HTMLSpanElement;
@@ -286,14 +287,12 @@ const userPhoneInput = document.getElementById('userPhone') as HTMLInputElement;
 const thumbBtns = [
   document.getElementById('thumb-0') as HTMLButtonElement,
   document.getElementById('thumb-1') as HTMLButtonElement,
-  document.getElementById('thumb-2') as HTMLButtonElement,
-  document.getElementById('thumb-3') as HTMLButtonElement
+  document.getElementById('thumb-2') as HTMLButtonElement
 ];
 const thumbImgs = [
   document.getElementById('thumbImg-0') as HTMLImageElement,
   document.getElementById('thumbImg-1') as HTMLImageElement,
-  document.getElementById('thumbImg-2') as HTMLImageElement,
-  document.getElementById('thumbImg-3') as HTMLImageElement
+  document.getElementById('thumbImg-2') as HTMLImageElement
 ];
 
 // State
@@ -443,13 +442,9 @@ interface CaptureStageConfig {
 }
 
 // CAPTURE_STAGES is now dynamically generated to support translations
+// Front view is captured in AI preview, so we only need 3 additional views
 function getCaptureStages(): CaptureStageConfig[] {
   return [
-    {
-      id: 'front_smile',
-      title: t('frontOpenView'),
-      instruction: t('frontOpenInstruction')
-    },
     {
       id: 'lower_front',
       title: t('lowerTeethView'),
@@ -469,11 +464,124 @@ function getCaptureStages(): CaptureStageConfig[] {
 }
 
 let stageCamera: Camera | null = null;
-let stageCaptures: Array<string | null> = [null, null, null, null];
+let stageCaptures: Array<string | null> = [null, null, null]; // 3 stages: lower, upper, side
 let activeStageIndex = 0;
 let stageReady = false;
 let stageLandmarks: any[] | null = null;
+let cleanFrontImageFromPreview: string | null = null; // Store the clean front image from AI preview
 // Teeth detection disabled for Photo Scan - using MediaPipe guide only
+
+// Example photos management
+const EXAMPLE_PHOTOS_KEY = 'beame_example_photos';
+let usingExamplePhotos = false;
+
+function downloadExamplePhotos() {
+  const allCaptured = stageCaptures.every(img => img !== null);
+  if (!allCaptured) {
+    alert(currentLanguage === 'en' 
+      ? 'Please capture all 3 photos first before downloading.' 
+      : '請先拍攝全部 3 張照片再下載。');
+    return;
+  }
+  
+  try {
+    const labels = ['lower', 'upper', 'side'];
+    // Download each photo with a delay to ensure all 3 are saved
+    stageCaptures.forEach((imgDataUrl, index) => {
+      if (imgDataUrl) {
+        setTimeout(() => {
+          const link = document.createElement('a');
+          link.href = imgDataUrl;
+          link.download = `beame_example_${labels[index]}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }, index * 300); // 300ms delay between each download
+      }
+    });
+    alert(currentLanguage === 'en' 
+      ? '✓ Photos downloading to your downloads folder!' 
+      : '✓ 照片正在下載至您的下載資料夾！');
+  } catch (error) {
+    console.error('Failed to download example photos:', error);
+    alert(currentLanguage === 'en' 
+      ? 'Failed to download photos.' 
+      : '無法下載照片。');
+  }
+}
+
+function loadExamplePhotos(): boolean {
+  try {
+    const saved = localStorage.getItem(EXAMPLE_PHOTOS_KEY);
+    if (saved) {
+      const examples = JSON.parse(saved);
+      if (Array.isArray(examples) && examples.length === 3) {
+        stageCaptures = examples;
+        usingExamplePhotos = true;
+        return true;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load example photos:', error);
+  }
+  return false;
+}
+
+function clearExamplePhotos() {
+  try {
+    localStorage.removeItem(EXAMPLE_PHOTOS_KEY);
+    alert(currentLanguage === 'en' 
+      ? '✓ Example photos cleared!' 
+      : '✓ 範例照片已清除！');
+    usingExamplePhotos = false;
+    stageCaptures = [null, null, null];
+    thumbImgs.forEach(img => {
+      if (img) {
+        img.src = '';
+        img.style.display = 'none';
+      }
+    });
+    updateStageUI();
+  } catch (error) {
+    console.error('Failed to clear example photos:', error);
+  }
+}
+
+function updateExamplePhotoIndicators() {
+  thumbImgs.forEach((img, idx) => {
+    if (img && stageCaptures[idx] && usingExamplePhotos) {
+      img.style.border = '3px solid #f08c00';
+      img.style.opacity = '0.85';
+      // Add example badge if not exists
+      let badge = img.parentElement?.querySelector('.example-badge') as HTMLElement;
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'example-badge';
+        badge.textContent = 'EXAMPLE';
+        badge.style.position = 'absolute';
+        badge.style.top = '5px';
+        badge.style.left = '5px';
+        badge.style.background = 'rgba(240, 140, 0, 0.9)';
+        badge.style.color = 'white';
+        badge.style.padding = '2px 6px';
+        badge.style.borderRadius = '3px';
+        badge.style.fontSize = '10px';
+        badge.style.fontWeight = 'bold';
+        badge.style.zIndex = '10';
+        if (img.parentElement) {
+          img.parentElement.style.position = 'relative';
+          img.parentElement.appendChild(badge);
+        }
+      }
+      badge.style.display = 'block';
+    } else if (img) {
+      img.style.border = '';
+      img.style.opacity = '1';
+      const badge = img.parentElement?.querySelector('.example-badge') as HTMLElement;
+      if (badge) badge.style.display = 'none';
+    }
+  });
+}
 
 // Initialize MediaPipe Face Mesh
 function initializeFaceMesh() {
@@ -852,11 +960,12 @@ function drawCustomFaceMesh(ctx: CanvasRenderingContext2D, landmarks: any[], wid
     const textWidth = textMetrics.width + 40;
     ctx.fillStyle = isValid ? 'rgba(0, 206, 124, 0.8)' : 'rgba(239, 68, 68, 0.85)';
     ctx.beginPath();
-    ctx.roundRect(width/2 - textWidth/2, height * 0.15, textWidth, 40, [20]);
+    // Move tooltip to the bottom (80% down the height)
+    ctx.roundRect(width/2 - textWidth/2, height * 0.8, textWidth, 40, [20]);
     ctx.fill();
     
     ctx.fillStyle = '#fff';
-    ctx.fillText(feedback, width/2, height * 0.15 + 28);
+    ctx.fillText(feedback, width/2, height * 0.8 + 28);
     ctx.restore();
   }
 }
@@ -1010,11 +1119,12 @@ function drawDentalOverlay(
     const textWidth = textMetrics.width + 40;
     ctx.fillStyle = isReady ? 'rgba(0, 206, 124, 0.8)' : 'rgba(239, 68, 68, 0.85)';
     ctx.beginPath();
-    ctx.roundRect(width/2 - textWidth/2, height * 0.15, textWidth, 40, [20]);
+    // Move tooltip to the bottom (80% down the height)
+    ctx.roundRect(width/2 - textWidth/2, height * 0.8, textWidth, 40, [20]);
     ctx.fill();
     
     ctx.fillStyle = '#fff';
-    ctx.fillText(feedback, width/2, height * 0.15 + 28);
+    ctx.fillText(feedback, width/2, height * 0.8 + 28);
     ctx.restore();
   }
 }
@@ -1352,13 +1462,14 @@ async function capturePhoto() {
   if (!camera) {
     console.log('[DEBUG] Camera not running, attempting to start...');
     const started = await startCamera();
-    if (!started) {
-      // Error already shown by startCamera(), just return
-      return;
-    }
+    if (started) {
     const startOverlay = document.getElementById('cameraStartOverlay');
     if (startOverlay) startOverlay.classList.add('hidden');
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      setCookie('beame_camera_prompted', 'true', 365);
+      // Just start the camera, don't capture yet as we need time to detect face/teeth
+      return;
+    }
+    return;
   }
   
   if (isProcessing) return;
@@ -1396,6 +1507,10 @@ async function capturePhoto() {
   cleanCanvas.height = webcamElement.videoHeight;
   cleanCtx.drawImage(webcamElement, 0, 0, cleanCanvas.width, cleanCanvas.height);
   const cleanImageDataUrl = cleanCanvas.toDataURL('image/png');
+  
+  // Store the clean front image for later use in photo scan submission
+  cleanFrontImageFromPreview = cleanImageDataUrl;
+  console.log('[DEBUG] Clean front image stored for photo scan');
 
   // NOW stop camera loop to free up resources during processing
   if (camera) {
@@ -1435,6 +1550,7 @@ async function capturePhoto() {
     processingIndicator.style.display = 'none';
     straightenedImage.style.display = 'block';
     downloadBtn.style.display = 'inline-block';
+    if (nextToPlanBtn) nextToPlanBtn.style.display = 'inline-block';
     
     // CRITICAL: Only enable tabs AFTER the image is confirmed visible
     const tab3dBtn = document.getElementById('3dTabBtn') as HTMLButtonElement;
@@ -1503,7 +1619,27 @@ async function generateStraightenedImage(originalDataUrl: string, generationId: 
       { name: 'gemini-2.0-flash-exp', description: 'Experimental' }
     ];
     
-    const prompt = `MANDATORY TEETH STRAIGHTENING - YOU MUST MAKE SIGNIFICANT VISIBLE CHANGES...`;
+    const prompt = `MANDATORY TEETH STRAIGHTENING - EXTREME TRANSFORMATION REQUIRED:
+
+You MUST create a DRAMATIC, HIGHLY EXAGGERATED transformation showing PERFECTLY STRAIGHT, IDEALLY ALIGNED teeth.
+
+CRITICAL REQUIREMENTS:
+1. Make ALL teeth PERFECTLY STRAIGHT - eliminate ANY rotation, tilt, or angle
+2. Create a FLAWLESS, UNIFORM arch - like a professional Hollywood smile
+3. EXAGGERATE the straightness - make it look almost TOO perfect
+4. Align all teeth in a PERFECTLY SMOOTH, EVEN curve
+5. Remove ALL gaps, crowding, and overlaps completely
+6. Make front teeth perfectly centered and symmetrically aligned
+7. Ensure teeth appear bright, white, and professionally aligned
+8. The result should look like the BEST POSSIBLE outcome from orthodontic treatment
+
+TRANSFORMATION INTENSITY: MAXIMUM
+- Don't be subtle - make the change OBVIOUS and DRAMATIC
+- If you're unsure, make teeth STRAIGHTER
+- The "after" should look like a textbook perfect smile
+- Think: celebrity smile, orthodontist's portfolio, ideal dental arch
+
+Keep the natural photo realistic but make the teeth alignment DRAMATICALLY improved and noticeably straighter than the original.`;
 
     for (let i = 0; i < modelsToTry.length; i++) {
       if (generationId !== currentGenerationId) return;
@@ -1996,14 +2132,70 @@ function getMouthMetrics(landmarks: any[], width: number, height: number) {
 }
 
 async function initializeStageCapture(): Promise<void> {
+  // Load demo pics as placeholders
+  await loadDemoPics();
+  
   if (!stageCamera) await startStageCamera();
   updateStageUI();
+}
+
+async function loadDemoPics(): Promise<void> {
+  const demoPicPaths = [
+    '/analysis/demopics/beame_example_lower.png',
+    '/analysis/demopics/beame_example_upper.png',
+    '/analysis/demopics/beame_example_side-2.png'
+  ];
+  
+  try {
+    // Load each demo pic
+    for (let i = 0; i < demoPicPaths.length; i++) {
+      const response = await fetch(demoPicPaths[i]);
+      if (response.ok) {
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          // Set thumbnail
+          if (thumbImgs[i]) {
+            thumbImgs[i].src = base64data;
+            thumbImgs[i].style.display = 'block';
+            thumbImgs[i].style.opacity = '0.6'; // Make it obvious it's a placeholder
+            
+            // Add demo badge
+            const parent = thumbImgs[i].parentElement;
+            if (parent && !parent.querySelector('.demo-badge')) {
+              const badge = document.createElement('div');
+              badge.className = 'demo-badge';
+              badge.textContent = 'DEMO';
+              badge.style.position = 'absolute';
+              badge.style.top = '5px';
+              badge.style.left = '5px';
+              badge.style.background = 'rgba(139, 92, 246, 0.9)';
+              badge.style.color = 'white';
+              badge.style.padding = '2px 8px';
+              badge.style.borderRadius = '4px';
+              badge.style.fontSize = '11px';
+              badge.style.fontWeight = 'bold';
+              badge.style.zIndex = '10';
+              badge.style.letterSpacing = '0.5px';
+              parent.style.position = 'relative';
+              parent.appendChild(badge);
+            }
+          }
+        };
+        reader.readAsDataURL(blob);
+      }
+    }
+    console.log('[DEBUG] Demo pics loaded successfully');
+  } catch (error) {
+    console.error('[DEBUG] Failed to load demo pics:', error);
+  }
 }
 
 function updateStageUI() {
   const stages = getCaptureStages();
   const stage = stages[activeStageIndex];
-  if (stageStepEl) stageStepEl.textContent = `${activeStageIndex + 1} of 4`;
+  if (stageStepEl) stageStepEl.textContent = `${activeStageIndex + 1} of 3`;
   if (stageTitleEl) stageTitleEl.textContent = stage.title;
   if (stageInstructionEl) stageInstructionEl.textContent = stage.instruction;
   stageReady = false; stageCaptureBtn.disabled = true;
@@ -2087,9 +2279,9 @@ if (finalSubmitBtn) {
 
     console.log('[DEBUG] Phone normalized:', finalPhone);
 
-    // Validate that we have at least the front image
-    if (!stageCaptures[0]) {
-      alert(currentLanguage === 'en' ? 'Please capture at least the front image.' : '請至少拍攝正面照片。');
+    // Validate that we have the front image from AI preview
+    if (!cleanFrontImageFromPreview) {
+      alert(currentLanguage === 'en' ? 'Please complete the AI analysis first to capture the front view.' : '請先完成 AI 分析以捕獲正面視圖。');
       return;
     }
 
@@ -2118,25 +2310,26 @@ if (finalSubmitBtn) {
       formData.append('email', email);
       formData.append('phone', finalPhone);
 
-      // Add front image (required) - as File
-      if (stageCaptures[0]) {
-        const frontBlob = dataURLtoBlob(stageCaptures[0]);
+      // Add front image (required) - from AI preview clean capture
+      if (cleanFrontImageFromPreview) {
+        const frontBlob = dataURLtoBlob(cleanFrontImageFromPreview);
         formData.append('front_image', frontBlob, 'front_image.png');
       }
 
       // Add optional images - ALSO as Files (API requires files despite docs saying "string")
-      if (stageCaptures[2]) { // Upper view -> top_image
-        const topBlob = dataURLtoBlob(stageCaptures[2]);
-        formData.append('top_image', topBlob, 'top_image.png');
-      }
-
-      if (stageCaptures[1]) { // Lower view -> bottom_image
-        const bottomBlob = dataURLtoBlob(stageCaptures[1]);
+      // New indices: [0]=lower, [1]=upper, [2]=side
+      if (stageCaptures[0]) { // Lower view -> bottom_image
+        const bottomBlob = dataURLtoBlob(stageCaptures[0]);
         formData.append('bottom_image', bottomBlob, 'bottom_image.png');
       }
 
-      if (stageCaptures[3]) { // Side view -> side_image
-        const sideBlob = dataURLtoBlob(stageCaptures[3]);
+      if (stageCaptures[1]) { // Upper view -> top_image
+        const topBlob = dataURLtoBlob(stageCaptures[1]);
+        formData.append('top_image', topBlob, 'top_image.png');
+      }
+
+      if (stageCaptures[2]) { // Side view -> side_image
+        const sideBlob = dataURLtoBlob(stageCaptures[2]);
         formData.append('side_image', sideBlob, 'side_image.png');
       }
 
@@ -2218,15 +2411,38 @@ if (stageCaptureBtn) {
     canvas.getContext('2d')!.drawImage(stageWebcam, 0, 0);
     const dataUrl = canvas.toDataURL('image/png');
     stageCaptures[activeStageIndex] = dataUrl;
-    if (thumbImgs[activeStageIndex]) { thumbImgs[activeStageIndex].src = dataUrl; thumbImgs[activeStageIndex].style.display = 'block'; }
-    if (activeStageIndex < 3) { activeStageIndex++; updateStageUI(); } else { updateStageUI(); }
+    
+    // Mark as no longer using example photos when capturing new photo
+    usingExamplePhotos = false;
+    
+    if (thumbImgs[activeStageIndex]) { 
+      thumbImgs[activeStageIndex].src = dataUrl; 
+      thumbImgs[activeStageIndex].style.display = 'block';
+      thumbImgs[activeStageIndex].style.opacity = '1'; // Full opacity for real photos
+      
+      // Remove demo badge
+      const parent = thumbImgs[activeStageIndex].parentElement;
+      const demoBadge = parent?.querySelector('.demo-badge');
+      if (demoBadge) demoBadge.remove();
+    }
+    if (activeStageIndex < 2) { activeStageIndex++; updateStageUI(); } else { updateStageUI(); }
   });
 }
 
 if (stageRetakeBtn) {
-  stageRetakeBtn.addEventListener('click', () => {
+  stageRetakeBtn.addEventListener('click', async () => {
     stageCaptures[activeStageIndex] = null;
-    if (thumbImgs[activeStageIndex]) { thumbImgs[activeStageIndex].src = ''; thumbImgs[activeStageIndex].style.display = 'none'; }
+    if (thumbImgs[activeStageIndex]) { 
+      thumbImgs[activeStageIndex].src = ''; 
+      thumbImgs[activeStageIndex].style.display = 'none';
+      
+      // Remove demo badge if exists
+      const parent = thumbImgs[activeStageIndex].parentElement;
+      const demoBadge = parent?.querySelector('.demo-badge');
+      if (demoBadge) demoBadge.remove();
+    }
+    // Reload demo pic for this slot
+    await loadDemoPics();
     updateStageUI();
   });
 }
@@ -2250,7 +2466,11 @@ function downloadResult() {
 async function retry() {
   if (camera) { (camera as any).stop(); camera = null; }
   if (stageCamera) (stageCamera as any).stop(); stageCamera = null;
-  pendingDentalAnalysis = null; stageCaptures = [null, null, null, null]; activeStageIndex = 0;
+  pendingDentalAnalysis = null; 
+  stageCaptures = [null, null, null]; 
+  activeStageIndex = 0;
+  cleanFrontImageFromPreview = null; // Reset the clean front image
+  usingExamplePhotos = false; // Clear example photos flag on retry
   // Tracking caches removed - using raw ONNX detections
   
   // Reset form and camera card visibility
@@ -2265,7 +2485,15 @@ async function retry() {
     finalSubmitBtn.textContent = currentLanguage === 'en' ? 'Submit My Scans' : '提交我的掃描';
   }
 
-  thumbImgs.forEach(img => { if (img) { img.src = ''; img.style.display = 'none'; } });
+  thumbImgs.forEach(img => { 
+    if (img) { 
+      img.src = ''; 
+      img.style.display = 'none';
+      // Clear demo badges
+      const demoBadge = img.parentElement?.querySelector('.demo-badge') as HTMLElement;
+      if (demoBadge) demoBadge.remove();
+    } 
+  });
   if (stageCompleteBtn) stageCompleteBtn.style.display = 'none';
   resultsSection.style.display = 'none';
   const assessmentSection = document.getElementById('aiAssessmentSection');
@@ -2275,8 +2503,11 @@ async function retry() {
   if (planTabBtn) { planTabBtn.disabled = true; planTabBtn.classList.add('disabled'); }
   if (tab3dBtn) { tab3dBtn.disabled = true; tab3dBtn.classList.add('disabled'); }
   const switchTabFn = (window as any).switchTab; if (switchTabFn) switchTabFn('preview');
-  webcamSection.style.display = 'block'; captureBtn.disabled = true;
-  downloadBtn.style.display = 'none'; isProcessing = false;
+  webcamSection.style.display = 'block'; 
+  captureBtn.disabled = false; // Allow clicking to start camera if needed
+  downloadBtn.style.display = 'none'; 
+  if (nextToPlanBtn) nextToPlanBtn.style.display = 'none';
+  isProcessing = false;
   currentLandmarks = null; currentSession = null;
   updateProgressSteps(1);
   if (analysisStatus) { analysisStatus.parentElement?.classList.remove('ready'); analysisStatus.parentElement?.classList.add('not-ready'); analysisStatus.textContent = t('openMouthWider'); }
@@ -2287,6 +2518,9 @@ async function retry() {
 captureBtn.addEventListener('click', capturePhoto);
 downloadBtn.addEventListener('click', downloadResult);
 retryBtn.addEventListener('click', retry);
+
+// Keyboard shortcuts for example photo management
+// Keyboard shortcuts removed - no longer needed
 
 async function initializeApp() {
   console.log('[DEBUG] Beame Teeth Straightener initialized');

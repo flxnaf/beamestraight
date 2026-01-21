@@ -1,0 +1,2 @@
+# This file ensures the example-photos directory is tracked in git
+# Even if no PNG files are present

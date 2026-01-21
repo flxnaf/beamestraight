@@ -497,7 +497,8 @@ body.app-body {
   text-align: center;
   font-size: 11px;
   color: var(--text-light);
-  margin-top: 10px;
+  margin-top: 16px;
+  margin-bottom: 20px;
   font-style: italic;
 }
 
@@ -1254,9 +1255,9 @@ body.app-body {
 
 .capture4-thumbs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  max-width: 600px;
+  max-width: 450px;
   margin: 0 auto;
 }
 

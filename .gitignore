@@ -60,3 +60,6 @@ Thumbs.db
 
 # Old/unused files
 oldmiscellaneous/
+
+# Example photos (uncomment to keep them private/local-only)
+# public/example-photos/*.png
