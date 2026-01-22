@@ -1254,9 +1254,9 @@ body.app-body {
 
 .capture4-thumbs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  max-width: 600px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 500px;
   margin: 0 auto;
 }
 
@@ -1274,9 +1274,9 @@ body.app-body {
 }
 
 .thumb-btn.active {
-  border-color: var(--beame-purple);
+  border-color: var(--beame-green);
   transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 16px rgba(0, 206, 124, 0.2);
 }
 
 .thumb-btn.captured {
@@ -1315,7 +1315,9 @@ body.app-body {
   }
   
   .capture4-thumbs {
-    gap: 6px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-width: 100%;
   }
   
   .thumb-label {
@@ -1642,6 +1644,109 @@ body.app-body {
   font-weight: bold;
   z-index: 10;
   pointer-events: none;
+}
+
+/* ============================================
+   EXAMPLE GUIDE CARD
+   ============================================ */
+
+.example-guide-card {
+  margin-top: 1.5rem;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  box-shadow: var(--shadow-md);
+  border: 1px solid #f0f0f0;
+  border-left: 4px solid var(--beame-green);
+  transition: all 0.3s ease;
+}
+
+.example-guide-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.example-guide-img-wrap {
+  flex-shrink: 0;
+  position: relative;
+}
+
+.example-guide-img {
+  width: 90px;
+  height: 90px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid #f8f9fa;
+  box-shadow: var(--shadow-sm);
+}
+
+.example-guide-check {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  background: var(--beame-green);
+  color: white;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 206, 124, 0.4);
+  border: 2px solid white;
+}
+
+.example-guide-content {
+  flex: 1;
+}
+
+.example-guide-content h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.example-guide-content p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .example-guide-card {
+    padding: 0.75rem;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  
+  .example-guide-img {
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+  }
+  
+  .example-guide-content h4 {
+    font-size: 0.9rem;
+    margin-bottom: 0.15rem;
+  }
+  
+  .example-guide-content p {
+    font-size: 0.75rem;
+    line-height: 1.3;
+  }
+
+  .example-guide-check {
+    width: 18px;
+    height: 18px;
+    bottom: -4px;
+    right: -4px;
+  }
 }
 
 /* Responsive adjustments */

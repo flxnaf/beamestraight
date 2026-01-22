@@ -839,7 +839,7 @@ function splitUpperLowerTeeth(
 // Draw smooth tooth overlays (professional Smileset-style)
 function drawTeethDetections(ctx: CanvasRenderingContext2D, detections: ToothDetection[]) {
   if (ENABLE_TEETH_OVERLAY) {
-    drawSmoothToothOverlay(ctx, detections, false); // false = hide confidence percentages
+    drawSmoothToothOverlay(ctx, detections, true); // true = show confidence percentages (supervisor approved!)
   }
 }
 
@@ -2170,14 +2170,15 @@ async function loadDemoPics(): Promise<void> {
               badge.style.position = 'absolute';
               badge.style.top = '5px';
               badge.style.left = '5px';
-              badge.style.background = 'rgba(139, 92, 246, 0.9)';
+              badge.style.background = 'rgba(0, 206, 124, 0.9)'; // Changed from purple to Beame green
               badge.style.color = 'white';
               badge.style.padding = '2px 8px';
               badge.style.borderRadius = '4px';
-              badge.style.fontSize = '11px';
+              badge.style.fontSize = '10px';
               badge.style.fontWeight = 'bold';
               badge.style.zIndex = '10';
               badge.style.letterSpacing = '0.5px';
+              badge.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
               parent.style.position = 'relative';
               parent.appendChild(badge);
             }

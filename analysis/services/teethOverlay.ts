@@ -23,7 +23,7 @@ interface ToothDetection {
 export function drawSmoothToothOverlay(
   ctx: CanvasRenderingContext2D,
   detections: ToothDetection[],
-  showNumbers: boolean = false // Disabled by default for cleaner look
+  showNumbers: boolean = true // Show confidence by default - supervisor approved!
 ): void {
   if (detections.length === 0) return;
 
@@ -55,6 +55,40 @@ export function drawSmoothToothOverlay(
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.lineWidth = 2;
     ctx.stroke();
+    
+    // Show confidence percentage (supervisor loves this!)
+    if (showNumbers && tooth.confidence !== undefined) {
+      const centerX = tooth.x + tooth.width / 2;
+      const centerY = tooth.y + tooth.height / 2;
+      const confidence = Math.round(tooth.confidence * 100);
+      
+      // Draw confidence tooltip
+      ctx.font = 'bold 11px -apple-system, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      // Background for better readability
+      const text = `${confidence}%`;
+      const textMetrics = ctx.measureText(text);
+      const padding = 4;
+      const bgWidth = textMetrics.width + padding * 2;
+      const bgHeight = 16;
+      
+      ctx.fillStyle = 'rgba(0, 206, 124, 0.9)';
+      ctx.beginPath();
+      ctx.roundRect(
+        centerX - bgWidth / 2,
+        centerY - bgHeight / 2,
+        bgWidth,
+        bgHeight,
+        [4]
+      );
+      ctx.fill();
+      
+      // Draw text
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(text, centerX, centerY);
+    }
     
     ctx.restore();
   });
