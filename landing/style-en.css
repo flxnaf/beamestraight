@@ -4,6 +4,7 @@
   src: url("./Font/Comfortaa font/static/Comfortaa-Regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -11,6 +12,7 @@
   src: url("../源泉圆体/GenSenMaruGothicTW-Regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -18,6 +20,7 @@
   src: url("../源泉圆体/GenSenMaruGothicTW-Bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -25,6 +28,7 @@
   src: url("../源泉圆体/GenSenMaruGothicTW-Medium.ttf") format("truetype");
   font-weight: 500;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -32,6 +36,7 @@
   src: url("../源泉圆体/GenSenMaruGothicTW-Heavy.ttf") format("truetype");
   font-weight: 900;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -39,6 +44,7 @@
   src: url("./Font/OMNIUM-EXTRABOLD.OTF") format("opentype");
   font-weight: 800;
   font-style: normal;
+  font-display: swap;
 }
 
 :root {

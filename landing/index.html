@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Beame | AI 透明牙箍</title>
     <link rel="icon" type="image/jpeg" href="../beame favicon.jpg">
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="./Font/Comfortaa font/static/Comfortaa-Regular.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="../源泉圆体/GenSenMaruGothicTW-Bold.ttf" as="font" type="font/ttf" crossorigin>
+    
+    <!-- Preload hero image based on device -->
+    <link rel="preload" as="image" href="./pics/bannerpicfinal.jpeg" media="(min-width: 1025px)">
+    <link rel="preload" as="image" href="./pics/bannerpicmobile_optimized.jpg" media="(max-width: 1024px)">
+    
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -64,10 +73,10 @@
     <div class="top">
             <div class="computer">
                 <div class="pc-view">
-                    <img class="computer_img_top" src="./pics/bannerpicfinal.jpeg" alt="Beame">
+                    <img class="computer_img_top" src="./pics/bannerpicfinal.jpeg" alt="Beame" width="1920" height="1080" fetchpriority="high">
                 </div>
                 <div class="mobile-view">
-                    <img class="move_img" src="./pics/model pic.jpg" alt="Beame">
+                    <img class="move_img" src="./pics/bannerpicmobile_optimized.jpg" alt="Beame" width="768" height="1024" fetchpriority="high">
                 </div>
                 
                 <div class="banner-overlay">
