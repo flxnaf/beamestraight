@@ -2366,21 +2366,6 @@ if (finalSubmitBtn) {
       const modal = document.getElementById('completionModal');
       if (modal) {
         modal.style.display = 'flex';
-        
-        // Setup download button in modal
-        const modalDownloadBtn = document.getElementById('modalDownloadBtn');
-        if (modalDownloadBtn) {
-          modalDownloadBtn.onclick = () => {
-            const switchTabFn = (window as any).switchTab; 
-            if (switchTabFn) switchTabFn('preview');
-            modal.style.display = 'none';
-            // Trigger download
-            setTimeout(() => {
-              const downloadBtn = document.getElementById('downloadBtn');
-              if (downloadBtn) downloadBtn.click();
-            }, 500);
-          };
-        }
       } else {
         alert(currentLanguage === 'en' 
           ? 'Interest submitted! Our specialists will contact you shortly.' 
