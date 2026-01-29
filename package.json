@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "backend": "cd api && npm start",
+    "backend:dev": "cd api && npm run dev"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

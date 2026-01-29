@@ -17,12 +17,14 @@ import { enableDiagnostics } from './utils/diagnostics';
 import type { ScanSession, DentalAnalysis, TreatmentPlan } from './types/dental';
 import { loadONNXModel, detectTeethONNX, isONNXReady } from './services/onnxInference';
 import { drawSmoothToothOverlay } from './services/teethOverlay';
+import { generateStraightenedImage as apiGenerateStraightenedImage, classifyDentalCase as apiClassifyDentalCase } from './services/apiClient';
 
 // CONFIGURATION: Set to true to save API credits during development
 const USE_FALLBACK_MODE = false; // Set to false to enable real AI generation
 
-// Initialize Gemini AI (unused in fallback mode)
-const _genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+// Note: Gemini AI is now accessed through the backend API for security
+// The @google/generative-ai import is kept for type compatibility but not used directly
+const _genAI = new GoogleGenerativeAI(''); // Unused - kept for backwards compatibility
 
 // ============================================
 // TOOTH DETECTION CONFIGURATION
@@ -1607,69 +1609,36 @@ async function generateStraightenedImage(originalDataUrl: string, generationId: 
   }
   
   try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-      if (generationId === currentGenerationId) await _generateStraightenedImageOld(originalDataUrl);
-      return;
-    }
-
-    const base64Data = originalDataUrl.split(',')[1];
+    // Try models in order of preference
     const modelsToTry = [
       { name: 'gemini-2.5-flash-image', description: 'Nano Banana' },
       { name: 'gemini-2.0-flash-exp', description: 'Experimental' }
     ];
-    
-    const prompt = `MANDATORY TEETH STRAIGHTENING - EXTREME TRANSFORMATION REQUIRED:
-
-You MUST create a DRAMATIC, HIGHLY EXAGGERATED transformation showing PERFECTLY STRAIGHT, IDEALLY ALIGNED teeth.
-
-CRITICAL REQUIREMENTS:
-1. Make ALL teeth PERFECTLY STRAIGHT - eliminate ANY rotation, tilt, or angle
-2. Create a FLAWLESS, UNIFORM arch - like a professional Hollywood smile
-3. EXAGGERATE the straightness - make it look almost TOO perfect
-4. Align all teeth in a PERFECTLY SMOOTH, EVEN curve
-5. Remove ALL gaps, crowding, and overlaps completely
-6. Make front teeth perfectly centered and symmetrically aligned
-7. Ensure teeth appear bright, white, and professionally aligned
-8. The result should look like the BEST POSSIBLE outcome from orthodontic treatment
-
-TRANSFORMATION INTENSITY: MAXIMUM
-- Don't be subtle - make the change OBVIOUS and DRAMATIC
-- If you're unsure, make teeth STRAIGHTER
-- The "after" should look like a textbook perfect smile
-- Think: celebrity smile, orthodontist's portfolio, ideal dental arch
-
-Keep the natural photo realistic but make the teeth alignment DRAMATICALLY improved and noticeably straighter than the original.`;
 
     for (let i = 0; i < modelsToTry.length; i++) {
       if (generationId !== currentGenerationId) return;
       const modelInfo = modelsToTry[i];
       try {
-        const model = _genAI.getGenerativeModel({ model: modelInfo.name });
-        const result = await model.generateContent([
-          prompt,
-          { inlineData: { mimeType: 'image/png', data: base64Data } }
-        ]);
-
-        if (generationId !== currentGenerationId) return;
-        const response = await result.response;
-        const parts = response.candidates?.[0]?.content?.parts || [];
+        // Call backend API instead of directly calling Gemini
+        const imageDataUrl = await apiGenerateStraightenedImage(originalDataUrl, modelInfo.name);
         
-        for (const part of parts) {
-          if (part.inlineData) {
-            // Branding removed as requested
-            const resultImage = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-            if (generationId !== currentGenerationId) return;
-            straightenedImage.src = resultImage;
-            return;
-          }
+        if (generationId !== currentGenerationId) return;
+        
+        // If we got a valid image data URL, use it
+        if (imageDataUrl && imageDataUrl.startsWith('data:')) {
+          console.log('[DEBUG] Successfully generated image with', modelInfo.name);
+          straightenedImage.src = imageDataUrl;
+          return;
         }
       } catch (modelError) {
         console.warn(`[DEBUG] ${modelInfo.name} failed`, modelError);
       }
     }
+    
+    // If all models failed, use fallback
     if (generationId === currentGenerationId) await _generateStraightenedImageOld(originalDataUrl);
   } catch (error) {
+    console.error('[DEBUG] Error generating straightened image:', error);
     if (generationId === currentGenerationId) await _generateStraightenedImageOld(originalDataUrl);
   }
 }
@@ -1708,62 +1677,19 @@ async function _generateStraightenedImageOld(originalDataUrl: string): Promise<v
 
 // AI Classify
 async function classifyDentalCase(imageDataUrl: string): Promise<'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT'> {
-  // If fallback mode is enabled, skip Gemini API call
+  // If fallback mode is enabled, skip API call
   if (USE_FALLBACK_MODE) {
-    console.log('[DEBUG] Skipping Gemini classification (fallback mode)');
+    console.log('[DEBUG] Skipping classification (fallback mode)');
     return 'MODERATE';
   }
   
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') return 'MODERATE';
+  // Call backend API instead of directly calling Gemini
   try {
-    const base64Data = imageDataUrl.split(',')[1];
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-    const prompt = `You are a world-class orthodontist reviewing a patient's photo for clear aligners. 
-Your goal is to be realistic and appropriately cautious. DO NOT UNDER-DIAGNOSE.
-
-Most people taking this test have some degree of alignment issues that would benefit from treatment.
-
-CLASSIFICATION RULES (FOLLOW STRICTLY):
-
-1. **MILD** (ONLY for truly excellent teeth - ~10% of cases):
-   - Teeth are almost perfectly straight with only the tiniest cosmetic imperfections.
-   - Maybe ONE tooth with very minor rotation or spacing.
-   - If someone would say "your teeth are already great", it IS MILD.
-   - This category is for people who don't really NEED treatment but want perfection.
-
-2. **MODERATE** (DEFAULT - Choose this for ~65% of cases):
-   - Visible crowding, spacing, or rotation affecting multiple teeth.
-   - Teeth that are noticeably misaligned but not extreme.
-   - The typical person seeking aligners falls into this category.
-   - If there's ANY noticeable crowding or gaps, choose MODERATE.
-   - Overall arch shape is recognizable.
-
-3. **COMPLEX** (Choose for ~23% of cases):
-   - Severe overlap where teeth are significantly behind one another.
-   - Major gaps or severe crowding.
-   - Obvious, significant misalignment requiring extensive movement.
-   - Bite issues that are clearly visible.
-   - Multiple teeth severely out of position.
-
-4. **URGENT** (EXTREMELY RARE - ~2%):
-   - Obvious medical issues (swelling, broken teeth, infection).
-   - Requires immediate dental attention.
-
-GUIDANCE:
-- If you are debating between MILD and MODERATE, pick MODERATE.
-- If you are debating between MODERATE and COMPLEX, pick COMPLEX (be more willing to classify as complex).
-- Most users seeking this assessment have alignment issues worth treating. Default to MODERATE unless teeth are genuinely near-perfect (MILD) or severely misaligned (COMPLEX).
-
-Respond with ONLY ONE WORD: MILD, MODERATE, COMPLEX, or URGENT`;
-    const result = await model.generateContent([prompt, { inlineData: { mimeType: 'image/png', data: base64Data } }]);
-    const text = (await result.response).text().trim().toUpperCase();
-    if (text.includes('URGENT')) return 'URGENT';
-    if (text.includes('COMPLEX')) return 'COMPLEX';
-    if (text.includes('MODERATE')) return 'MODERATE';
-    return 'MILD';
-  } catch (error) { return 'MODERATE'; }
+    return await apiClassifyDentalCase(imageDataUrl);
+  } catch (error) {
+    console.error('[DEBUG] Error classifying dental case:', error);
+    return 'MODERATE';
+  }
 }
 
 function displayCaseClassification(classification: 'MILD' | 'MODERATE' | 'COMPLEX' | 'URGENT'): void {
